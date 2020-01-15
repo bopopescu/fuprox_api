@@ -63,7 +63,6 @@ def add_branches():
     branch = Branch(name,company,longitude,latitude,opens,closes,service,description)
     db.session.add(branch)
     db.session.commit()
-
     return branch_schema.jsonify(branch)
 
 
@@ -71,7 +70,6 @@ def add_branches():
 def add_service():
     name = request.json["name"]
     description = request.json["description"]
-
     service = Service(name,description)
     db.session.add(service)
     db.session.commit()
@@ -81,7 +79,6 @@ def add_service():
 
 @app.route("/service/get",methods=["GET","POST"])
 def get_service():
-
     services = Service.query.all()
     res = services_schema.dump(services)
     return jsonify(res)
@@ -99,7 +96,6 @@ def get_booking():
 
 @app.route("/book/make",methods=["POST"])
 def make_booking():
-
     # get data from the user
     # hash,start,branch,institution
     booking_id = secrets.token_hex(32)
@@ -109,7 +105,7 @@ def make_booking():
     institution = request.json["institution"]
 
     # adding the data to the database
-    #,booking_id,user,start,branch,institution)
+    # booking_id,user,start,branch,institution)
     booking = Book(booking_id,user_id,start,branch,institution)
     db.session.add(booking)
     db.session.commit()
@@ -130,16 +126,14 @@ def get_all_bookings():
 
 
 # get user bookings
-@app.route("/book/get/user")
+@app.route("/book/get/user",methods=["POST"])
 def get_user_bookings():
     # geting post data
     user_id = request.json["user_id"]
-
     # make a database selection
-    data = Book.query.filter_by(user_id=2).all()
-    res = book_schema.dump(data)
-
-    return jsonify({ "booking_data": res,"passed_data" : user_id})
+    data = Book.query.filter_by(user_id=user_id).all()
+    res = books_schema.dump(data)
+    return jsonify({ "booking_data": res})
 
 
 # check if the user exists
@@ -147,7 +141,6 @@ def user_exists(email):
     data = User.query.filter_by(email=email).first()
     result = user_schema.dump(data)
     return jsonify(result)
-
 
 
 if __name__ == "__main__":
