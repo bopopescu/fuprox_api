@@ -64,7 +64,7 @@ def adduser():
     return data
 
 
-@app.route("user/logout")
+@app.route("/user/logout")
 def user_logout():
     # remove the user token from the database
     token = request.json["token"]
