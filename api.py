@@ -1,12 +1,14 @@
+# from logging import exception
+
 from flask import request,jsonify
 from fuprox import db,app
-from fuprox.models import User,Branch,Book,UserSchema,BranchSchema,Service,ServiceSchema,BookSchema
+from fuprox.models import Customer,Branch,Book,CustomerSchema,BranchSchema,Service,ServiceSchema,BookSchema,Company,CompanySchema
 import secrets
-
+from fuprox import bcrypt
 
 # adding some product schemas
-user_schema = UserSchema()
-users_schema = UserSchema(many=True)
+user_schema = CustomerSchema()
+users_schema = CustomerSchema(many=True)
 
 # branch schema
 
@@ -23,24 +25,52 @@ book_schema = BookSchema()
 books_schema = BookSchema(many=True)
 
 
+#getting companiy schema
+company_schema = CompanySchema()
+companies_schema = CompanySchema(many=True)
+
+
 @app.route("/user/login",methods=["POST"])
 def get_user():
     email = request.json["email"]
-    name=""
-    if user_exists(email):
-        name = user_exists(email)
+    password = request.json["password"]
+
+    if user_exists(email, password):
+        name = user_exists(email,password)
+    else :
+        name = None
+
     return name
 
 
 @app.route("/user/signup",methods=["POST"])
 def adduser():
     email = request.json["email"]
-    user = User(email)
+    password= request.json["password"]
+    # get user data
+    user_data = Customer.query.filter_by(email=email).first()
+    if not user_data:
+        # hashing the password
+        hashed_password = bcrypt.generate_password_hash(password)
+        user = Customer(email, hashed_password)
+        db.session.add(user)
+        db.session.commit()
+        data = user_schema.jsonify(user)
+    else:
+        data = {
+            "user": None,
+            "msg": "User with that email Exists."
+        }
+    return data
 
-    db.session.add(user)
-    db.session.commit()
-    return user_schema.jsonify(user)
 
+@app.route("user/logout")
+def user_logout():
+    # remove the user token from the database
+    token = request.json["token"]
+    # remove token from db
+
+    pass
 
 @app.route("/branch/get")
 def get_all_branches():
@@ -136,10 +166,29 @@ def get_user_bookings():
     return jsonify({ "booking_data": res})
 
 
+
+@app.route("/branch/company")
+def get_companies():
+    companies = Company.query.all()
+    company_data = companies_schema.dump(companies)
+    return jsonify(company_data)
+
+
 # check if the user exists
-def user_exists(email):
-    data = User.query.filter_by(email=email).first()
-    result = user_schema.dump(data)
+def user_exists(email,password):
+    data = Customer.query.filter_by(email=email).first()
+    print(data)
+    # checking for the password
+    if data:
+        if bcrypt.check_password_hash(data.password,password):
+            token = secrets.token_hex(48)
+            result = {"user_data"  : user_schema.dump(data), "token" : token}
+
+    else :
+        result = {
+            "user": None,
+            "msg": "Bad Username/Password combination"
+        }
     return jsonify(result)
 
 

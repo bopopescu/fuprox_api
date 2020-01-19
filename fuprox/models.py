@@ -2,27 +2,29 @@ from fuprox import db, ma
 
 
 # user DB model
-class User(db.Model):
+class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(48), unique=True, nullable=False)
     image_file = db.Column(db.String(200), nullable=False, default="default.jpg")
+    password = db.Column(db.String(200),nullable=False)
 
     def __repr__(self):
         return f"User (' {self.id} '{self.email}' )"
 
-    def __init__(self, email ):
+    def __init__(self, email,password):
         self.email = email
+        self.password = password
 
-class UserSchema(ma.Schema):
+class CustomerSchema(ma.Schema):
     class Meta:
-        fields = ("id", "email")
+        fields = ("id", "email","password")
 
 
 # creating a company class
 class Company(db.Model):
     id = db.Column(db.Integer,primary_key=True)
     name = db.Column(db.String(length=50))
-    service = db.Column(db.String(length=50))
+    service = db.Column(db.String(length=250))
 
     def __init__(self,name,service):
         self.name = name
@@ -110,3 +112,7 @@ class BookSchema(ma.Schema):
         fields = ("id","booking_id","user_id","start","branch","institution")
 
 
+
+# class Token(db.Model):
+#     id = db.Column
+#
