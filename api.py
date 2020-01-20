@@ -69,12 +69,12 @@ def user_logout():
     # remove the user token from the database
     token = request.json["token"]
     # remove token from db
-
     pass
 
 @app.route("/branch/get")
 def get_all_branches():
     branches = Branch.query.all()
+    # loop over the
     res = branches_schema.dump(branches)
     return jsonify({"branches":res})
 
