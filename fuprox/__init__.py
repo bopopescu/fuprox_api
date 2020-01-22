@@ -5,10 +5,13 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (
     JWTManager, jwt_required, create_access_token,
     get_jwt_identity)
+from flask_cors import CORS
 
 
 app = Flask(__name__)
 
+# init cors
+CORS(app)
 
 # adding JWT t othe app
 jwt = JWTManager(app)

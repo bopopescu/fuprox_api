@@ -1,4 +1,5 @@
 from fuprox import db, ma
+from datetime import datetime
 
 
 # user DB model
@@ -110,6 +111,26 @@ class Book(db.Model):
 class BookSchema(ma.Schema):
     class Meta:
         fields = ("id","booking_id","user_id","start","branch","institution")
+
+
+
+
+class Help(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    topic = db.Column(db.String(length=100), nullable=False, unique=True)
+    title = db.Column(db.String(length=250), nullable=False)
+    solution = db.Column(db.Text, nullable=False)
+    date_added = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    def __init__(self, topic, title, solution):
+        self.topic = topic
+        self.title = title
+        self.solution = solution
+
+class HelpSchema(ma.Schema):
+    class Meta:
+        fields = ("id","topic","title","solution","date_added")
+
 
 
 

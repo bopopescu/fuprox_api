@@ -2,9 +2,11 @@
 
 from flask import request,jsonify
 from fuprox import db,app
-from fuprox.models import Customer,Branch,Book,CustomerSchema,BranchSchema,Service,ServiceSchema,BookSchema,Company,CompanySchema
+from fuprox.models import (Customer,Branch,Book,CustomerSchema,BranchSchema,Service,ServiceSchema
+                            ,BookSchema,Company,CompanySchema,Help,HelpSchema)
 import secrets
 from fuprox import bcrypt
+from fuprox.utilities import user_exists
 
 # adding some product schemas
 user_schema = CustomerSchema()
@@ -29,6 +31,13 @@ books_schema = BookSchema(many=True)
 company_schema = CompanySchema()
 companies_schema = CompanySchema(many=True)
 
+#help
+help_schema = HelpSchema()
+helps_schema = HelpSchema(many=True)
+#the help schema
+# helps_schema = HelpSchema(many=True)
+
+
 
 @app.route("/user/login",methods=["POST"])
 def get_user():
@@ -38,7 +47,10 @@ def get_user():
     if user_exists(email, password):
         name = user_exists(email,password)
     else :
-        name = None
+        data = {
+            "user": None,
+            "msg": "User with that email Exists."
+        }
 
     return name
 
@@ -77,6 +89,15 @@ def get_all_branches():
     # loop over the
     res = branches_schema.dump(branches)
     return jsonify({"branches":res})
+
+
+@app.route("/branch/get/single")
+def get_user_branches():
+    branch_id = request.json["user_id"]
+    # make a database selection
+    data = Branch.query.filter_by(id=branch_id).first()
+    res = branch_schema.dump(data)
+    return jsonify(res)
 
 
 @app.route("/branch/add",methods=["POST"])
@@ -121,7 +142,7 @@ def get_booking():
     # get all bookings
     data = Book.query.filter_by(booking_id=key).first()
     res = book_schema.dump(data)
-    return jsonify({" booking_data ": res})
+    return jsonify({" booking_data " : res})
 
 
 @app.route("/book/make",methods=["POST"])
@@ -174,22 +195,15 @@ def get_companies():
     return jsonify(company_data)
 
 
-# check if the user exists
-def user_exists(email,password):
-    data = Customer.query.filter_by(email=email).first()
-    print(data)
-    # checking for the password
-    if data:
-        if bcrypt.check_password_hash(data.password,password):
-            token = secrets.token_hex(48)
-            result = {"user_data"  : user_schema.dump(data), "token" : token}
+@app.route("/search/<string:term>")
+def search(term):
+    # getting user specific data
+    search = Help.query.filter(Help.solution.contains(term))
+    data = helps_schema.dump(search)
+    # companies = Company.query.co()
+    # data = companies_schema.dump(companies)
+    return jsonify(data)
 
-    else :
-        result = {
-            "user": None,
-            "msg": "Bad Username/Password combination"
-        }
-    return jsonify(result)
 
 
 if __name__ == "__main__":
