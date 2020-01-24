@@ -91,7 +91,7 @@ def get_all_branches():
     return jsonify({"branches":res})
 
 
-@app.route("/branch/get/single")
+@app.route("/branch/get/single", methods=["GET","POST"])
 def get_user_branches():
     branch_id = request.json["branch_id"]
     # make a database selection
