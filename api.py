@@ -93,7 +93,7 @@ def get_all_branches():
 
 @app.route("/branch/get/single")
 def get_user_branches():
-    branch_id = request.json["user_id"]
+    branch_id = request.json["branch_id"]
     # make a database selection
     data = Branch.query.filter_by(id=branch_id).first()
     res = branch_schema.dump(data)
