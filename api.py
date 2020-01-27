@@ -6,7 +6,12 @@ from fuprox.models import (Customer,Branch,Book,CustomerSchema,BranchSchema,Serv
                             ,BookSchema,Company,CompanySchema,Help,HelpSchema)
 import secrets
 from fuprox import bcrypt
-from fuprox.utilities import user_exists
+from fuprox.models import Customer,CustomerSchema
+from fuprox import bcrypt
+
+user_schema = CustomerSchema()
+users_exist = CustomerSchema(many=True)
+# from fuprox.utilities import user_exists
 
 # adding some product schemas
 user_schema = CustomerSchema()
@@ -204,6 +209,34 @@ def search(term):
     # data = companies_schema.dump(companies)
     return jsonify(data)
 
+
+@app.route("/app/search/",methods=["POST"])
+def search_app():
+    term = request.json['term']
+    search = Branch.query.filter(Branch.name.contains(term))
+    data = branches_schema.dump(search)
+    # companies = Company.query.co()
+    # data = companies_schema.dump(companies)
+    return jsonify(data)
+
+
+
+# check if the user exists
+def user_exists(email,password):
+    data = Customer.query.filter_by(email=email).first()
+    print(data)
+    # checking for the password
+    if data:
+        if bcrypt.check_password_hash(data.password,password):
+            token = secrets.token_hex(48)
+            result = {"user_data"  : user_schema.dump(data), "token" : token}
+
+    else :
+        result = {
+            "user": None,
+            "msg": "Bad Username/Password combination"
+        }
+    return jsonify(result)
 
 
 if __name__ == "__main__":
