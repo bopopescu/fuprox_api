@@ -210,7 +210,7 @@ def search(term):
     return jsonify(data)
 
 
-@app.route("/app/search/",methods=["POST"])
+@app.route("/app/search",methods=["POST"])
 def search_app():
     term = request.json['term']
     search = Branch.query.filter(Branch.name.contains(term))
