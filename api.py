@@ -6,6 +6,7 @@ from fuprox.models import (Customer,Branch,Book,CustomerSchema,BranchSchema,Serv
                             ,BookSchema,Company,CompanySchema,Help,HelpSchema)
 import secrets
 from fuprox import bcrypt
+<<<<<<< HEAD
 # from fuprox.utilities import user_exists
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)
@@ -13,6 +14,14 @@ users_exist = CustomerSchema(many=True)
 
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
+=======
+from fuprox.models import Customer,CustomerSchema
+from fuprox import bcrypt
+
+user_schema = CustomerSchema()
+users_exist = CustomerSchema(many=True)
+# from fuprox.utilities import user_exists
+>>>>>>> f32c12356f627f92359a2176215250137872a998
 
 # adding some product schemas
 user_schema = CustomerSchema()
@@ -225,6 +234,7 @@ def search(term):
     return jsonify(data)
 
 
+<<<<<<< HEAD
 # the search route 
 @app.route("/app/search/",methods=["POST"])
 def search_app():
@@ -236,6 +246,19 @@ def search_app():
     return jsonify(data)
 
 
+=======
+@app.route("/app/search",methods=["POST"])
+def search_app():
+    term = request.json['term']
+    search = Branch.query.filter(Branch.name.contains(term))
+    data = branches_schema.dump(search)
+    # companies = Company.query.co()
+    # data = companies_schema.dump(companies)
+    return jsonify(data)
+
+
+
+>>>>>>> f32c12356f627f92359a2176215250137872a998
 # check if the user exists
 def user_exists(email,password):
     data = Customer.query.filter_by(email=email).first()
