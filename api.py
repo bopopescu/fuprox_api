@@ -6,7 +6,6 @@ from fuprox.models import (Customer,Branch,Book,CustomerSchema,BranchSchema,Serv
                             ,BookSchema,Company,CompanySchema,Help,HelpSchema)
 import secrets
 from fuprox import bcrypt
-<<<<<<< HEAD
 # from fuprox.utilities import user_exists
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)
@@ -14,14 +13,12 @@ users_exist = CustomerSchema(many=True)
 
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
-=======
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
 
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)
 # from fuprox.utilities import user_exists
->>>>>>> f32c12356f627f92359a2176215250137872a998
 
 # adding some product schemas
 user_schema = CustomerSchema()
@@ -224,6 +221,17 @@ def get_by_service():
     data = branches_schema.dump(branch)
     return jsonify(data)
 
+
+@app.route("/company/by/service")
+def company_by_service():
+    service = request.json["service"]
+    branch = Company.query.filter_by(service=service).all()
+    data = companies_schema.dump(branch)
+    return jsonify(data)
+
+
+
+
 @app.route("/search/<string:term>")
 def search(term):
     # getting user specific data
@@ -234,8 +242,7 @@ def search(term):
     return jsonify(data)
 
 
-<<<<<<< HEAD
-# the search route 
+# the search route
 @app.route("/app/search/",methods=["POST"])
 def search_app():
     # data from the terms search
@@ -246,19 +253,7 @@ def search_app():
     return jsonify(data)
 
 
-=======
-@app.route("/app/search",methods=["POST"])
-def search_app():
-    term = request.json['term']
-    search = Branch.query.filter(Branch.name.contains(term))
-    data = branches_schema.dump(search)
-    # companies = Company.query.co()
-    # data = companies_schema.dump(companies)
-    return jsonify(data)
 
-
-
->>>>>>> f32c12356f627f92359a2176215250137872a998
 # check if the user exists
 def user_exists(email,password):
     data = Customer.query.filter_by(email=email).first()
