@@ -96,6 +96,7 @@ class Book(db.Model):
     booking_id = db.Column(db.String(length=100))
     user_id = db.Column(db.Integer)
     start = db.Column(db.String(length=200))
+    # ticket = db.Column(db.String(length=6),nullable=False)
     branch = db.Column(db.Integer)
     institution = db.Column(db.Integer)
     # check if the booking for the user exists from the current time then offer not booking
@@ -117,7 +118,7 @@ class BookSchema(ma.Schema):
 
 class Help(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    topic = db.Column(db.String(length=100), nullable=False, unique=True)
+    topic = db.Column(db.String(length=100), nullable=False)
     title = db.Column(db.String(length=250), nullable=False)
     solution = db.Column(db.Text, nullable=False)
     date_added = db.Column(db.DateTime, default=datetime.now, nullable=False)

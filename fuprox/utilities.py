@@ -1,5 +1,6 @@
 from fuprox.models import Customer,CustomerSchema
-import bcrypt,secrets,jsonify
+from fuprox import bcrypt
+import secrets,jsonify
 
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)

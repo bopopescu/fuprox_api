@@ -6,7 +6,13 @@ from fuprox.models import (Customer,Branch,Book,CustomerSchema,BranchSchema,Serv
                             ,BookSchema,Company,CompanySchema,Help,HelpSchema)
 import secrets
 from fuprox import bcrypt
-from fuprox.utilities import user_exists
+# from fuprox.utilities import user_exists
+user_schema = CustomerSchema()
+users_exist = CustomerSchema(many=True)
+
+
+from fuprox.models import Customer,CustomerSchema
+from fuprox import bcrypt
 
 # adding some product schemas
 user_schema = CustomerSchema()
@@ -31,12 +37,10 @@ books_schema = BookSchema(many=True)
 company_schema = CompanySchema()
 companies_schema = CompanySchema(many=True)
 
+
 #help
 help_schema = HelpSchema()
 helps_schema = HelpSchema(many=True)
-#the help schema
-# helps_schema = HelpSchema(many=True)
-
 
 
 @app.route("/user/login",methods=["POST"])
@@ -45,7 +49,7 @@ def get_user():
     password = request.json["password"]
 
     if user_exists(email, password):
-        name = user_exists(email,password)
+        name = user_exists(email, password)
     else :
         data = {
             "user": None,
@@ -55,7 +59,7 @@ def get_user():
     return name
 
 
-@app.route("/user/signup",methods=["POST"])
+@app.route("/user/signup", methods=["POST"])
 def adduser():
     email = request.json["email"]
     password= request.json["password"]
@@ -82,6 +86,7 @@ def user_logout():
     token = request.json["token"]
     # remove token from db
     pass
+
 
 @app.route("/branch/get")
 def get_all_branches():
@@ -117,7 +122,7 @@ def add_branches():
     return branch_schema.jsonify(branch)
 
 
-@app.route("/service/add",methods=["GET","POST"])
+@app.route("/service/add", methods=["GET","POST"])
 def add_service():
     name = request.json["name"]
     description = request.json["description"]
@@ -128,14 +133,14 @@ def add_service():
     return service_schema.jsonify(service)
 
 
-@app.route("/service/get",methods=["GET","POST"])
+@app.route("/service/get", methods=["GET","POST"])
 def get_service():
     services = Service.query.all()
     res = services_schema.dump(services)
     return jsonify(res)
 
 
-@app.route("/book/get",methods=["POST"])
+@app.route("/book/get", methods=["POST"])
 def get_booking():
     # get booking id
     key = request.json["booking_hash"]
@@ -165,7 +170,7 @@ def make_booking():
     return book_schema.jsonify(booking)
 
 
-@app.route("/book/get/all", methods=["GET"])
+@app.route("/book/get/all", methods=["GET","POST"])
 def get_all_bookings():
     # getting all data
     # we need to get the user data
@@ -187,13 +192,28 @@ def get_user_bookings():
     return jsonify({ "booking_data": res})
 
 
-
-@app.route("/branch/company")
+@app.route("/company/get")
 def get_companies():
     companies = Company.query.all()
     company_data = companies_schema.dump(companies)
     return jsonify(company_data)
 
+
+
+#getting branch by company
+@app.route("/branch/by/company",methods=["POST"])
+def get_by_branch():
+    company = request.json["company"]
+    branch = Branch.query.filter_by(company=company).all()
+    data = branches_schema.dump(branch)
+    return jsonify(data)
+
+@app.route("/branch/by/service")
+def get_by_service():
+    service = request.json["service"]
+    branch = Branch.query.filter_by(service=service).all()
+    data = branches_schema.dump(branch)
+    return jsonify(data)
 
 @app.route("/search/<string:term>")
 def search(term):
@@ -204,6 +224,34 @@ def search(term):
     # data = companies_schema.dump(companies)
     return jsonify(data)
 
+
+# the search route 
+@app.route("/app/search/",methods=["POST"])
+def search_app():
+    # data from the terms search
+    term = request.json["term"]
+    # getting user specific data
+    search = Branch.query.filter(Branch.name.contains(term))
+    data = branches_schema.dump(search)
+    return jsonify(data)
+
+
+# check if the user exists
+def user_exists(email,password):
+    data = Customer.query.filter_by(email=email).first()
+    print(data)
+    # checking for the password
+    if data:
+        if bcrypt.check_password_hash(data.password,password):
+            token = secrets.token_hex(48)
+            result = {"user_data"  : user_schema.dump(data), "token" : token}
+
+    else :
+        result = {
+            "user": None,
+            "msg": "Bad Username/Password combination"
+        }
+    return jsonify(result)
 
 
 if __name__ == "__main__":
