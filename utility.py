@@ -1,5 +1,5 @@
 from fuprox.models import Customer, CustomerSchema
-import jsonify
+from flask import jsonify
 user_schema = CustomerSchema()
 
 

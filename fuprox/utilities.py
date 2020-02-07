@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
 import secrets,jsonify
@@ -22,5 +21,3 @@ def user_exists(email,password):
             "msg": "Bad Username/Password combination"
         }
     return jsonify(result)
-=======
->>>>>>> f32c12356f627f92359a2176215250137872a998
