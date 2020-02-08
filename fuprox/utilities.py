@@ -1,6 +1,7 @@
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
-import secrets,jsonify
+import secrets
+from flask import jsonify
 
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)

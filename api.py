@@ -166,6 +166,9 @@ def make_booking():
     branch = request.json["branch"]
     institution = request.json["institution"]
 
+    # get ticket increment
+    # incremnt to one  then give the tiicket number
+
     # adding the data to the database
     # booking_id,user,start,branch,institution)
     booking = Book(booking_id,user_id,start,branch,institution)
@@ -214,11 +217,19 @@ def get_by_branch():
     data = branches_schema.dump(branch)
     return jsonify(data)
 
-@app.route("/branch/by/service")
+@app.route("/branch/by/service",methods=["POST"])
 def get_by_service():
     service = request.json["service"]
     branch = Branch.query.filter_by(service=service).all()
     data = branches_schema.dump(branch)
+    return jsonify(data)
+
+
+@app.route("/company/by/id",methods=["POST"])
+def company_by_service():
+    service = request.json["id"]
+    branch = Company.query.get(service)
+    data = company_schema.dump(branch)
     return jsonify(data)
 
 
@@ -228,8 +239,6 @@ def company_by_service():
     branch = Company.query.filter_by(service=service).all()
     data = companies_schema.dump(branch)
     return jsonify(data)
-
-
 
 
 @app.route("/search/<string:term>")
@@ -243,14 +252,25 @@ def search(term):
 
 
 # the search route
-@app.route("/app/search/",methods=["POST"])
+@app.route("/app/search",methods=["POST"])
 def search_app():
     # data from the terms search
     term = request.json["term"]
-    # getting user specific data
-    search = Branch.query.filter(Branch.name.contains(term))
-    data = branches_schema.dump(search)
-    return jsonify(data)
+    company_lookup = Company.query.filter(Company.name.contains(term)).first()
+    company_data = company_schema.dump(company_lookup)
+    # getting branch_data from company data
+    final_branch_data_company = []
+    if company_data :
+        company_name = company_data["name"]
+        branchdata_from_companyid = Branch.query.filter_by(company=company_name).all();
+        branch_data_company = branches_schema.dump(branchdata_from_companyid)
+        final_branch_data_company = branch_data_company
+    # gettng data by company name
+    branch_lookup = Branch.query.filter(Branch.name.contains(term))
+    branch_data_branch = branches_schema.dump(branch_lookup)
+    final_branch_data_term = branch_data_branch
+    data = final_branch_data_term + final_branch_data_company
+    return  jsonify(data)
 
 
 
@@ -263,13 +283,13 @@ def user_exists(email,password):
         if bcrypt.check_password_hash(data.password,password):
             token = secrets.token_hex(48)
             result = {"user_data"  : user_schema.dump(data), "token" : token}
-
     else :
         result = {
             "user": None,
             "msg": "Bad Username/Password combination"
         }
     return jsonify(result)
+
 
 
 if __name__ == "__main__":
