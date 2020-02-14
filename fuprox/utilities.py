@@ -6,6 +6,7 @@ from flask import jsonify
 user_schema = CustomerSchema()
 users_exist = CustomerSchema(many=True)
 
+
 # check if the user exists
 def user_exists(email,password):
     data = Customer.query.filter_by(email=email).first()
