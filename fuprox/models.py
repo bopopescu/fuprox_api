@@ -89,31 +89,6 @@ class ServiceSchema(ma.Schema):
     class Meta:
         fields = ("id","name","service")
 
-
-# creating a booking ID
-class Book(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    booking_id = db.Column(db.String(length=100))
-    user_id = db.Column(db.Integer)
-    start = db.Column(db.String(length=200))
-    # ticket = db.Column(db.String(length=6),nullable=False)
-    branch = db.Column(db.Integer)
-    institution = db.Column(db.Integer)
-    # check if the booking for the user exists from the current time then offer not booking
-
-    def __init__(self,booking_id,user,start,branch,institution):
-        self.booking_id = booking_id
-        self.user_id = user
-        self.start = start
-        self.branch = branch
-        self.institution = institution
-
-
-class BookSchema(ma.Schema):
-    class Meta:
-        fields = ("id","booking_id","user_id","start","branch","institution")
-
-
 # booking model
 # creating a booking ID
 class OnlineBooking(db.Model):

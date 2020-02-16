@@ -2,8 +2,8 @@
 
 from flask import request,jsonify
 from fuprox import db,app
-from fuprox.models import (Customer, Branch, Book, CustomerSchema, BranchSchema, Service, ServiceSchema
-                            , BookSchema, Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
+from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
+                            , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
                            OnlineBooking, OnlineBookingSchema)
 import secrets
 from fuprox import bcrypt
@@ -34,10 +34,6 @@ services_offered_schema = ServiceOfferedSchema(many=True)
 service_schema = ServiceSchema()
 services_schema = ServiceSchema(many=True)
 
-# service schema
-book_schema = BookSchema()
-books_schema = BookSchema(many=True)
-
 booking_schema = OnlineBookingSchema()
 bookings_schema = OnlineBookingSchema(many=True)
 
@@ -53,6 +49,7 @@ helps_schema = HelpSchema(many=True)
 # service Offered
 service_offer_schema = ServiceOfferedSchema()
 service_offers_schema = ServiceOfferedSchema(many=True)
+
 
 
 @app.route("/user/login",methods=["POST"])
@@ -164,7 +161,21 @@ def get_book():
         if user['id'] == booking["user_id"]:
             # return the ticket
             data = OnlineBooking.query.get(booking_id)
-            res = booking_schema.dump(data)
+            final = booking_schema.dump(data)
+
+            if final:
+                name = ServiceOffered.query.filter_by(name=final["service_name"]).first()
+                data = service_offer_schema.dump(name)
+                res = {
+                    "active":final["active"],
+                    "branch_id" : final["branch_id"],
+                    "booking_id" : final["id"],
+                    "service_name" : final["service_name"],
+                    "serviced" : final["serviced"],
+                    "user_id" : final["user_id"],
+                    "start" : final["start"],
+                    "code" : data["code"]+final["ticket"]
+                }
         else :
             res = { 'msg' : "user/booking mismatch"}
     else :
@@ -208,8 +219,8 @@ def get_user_bookings():
     # geting post data
     user_id = request.json["user_id"]
     # make a database selection
-    data = Book.query.filter_by(user_id=user_id).all()
-    res = books_schema.dump(data)
+    data = OnlineBooking.query.filter_by(user_id=user_id).all()
+    res = bookings_schema.dump(data)
     return jsonify({ "booking_data": res})
 
 
@@ -292,6 +303,13 @@ def service_offered():
     data = service_offers_schema.dump(lookup)
     return jsonify(data)
 
+@app.route("/ahead/of/you",methods=["POST"])
+def ahead_of_you():
+    service_name = request.json["service_name"]
+    branch_id = request.json["branch_id"]
+    lookup = OnlineBooking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).all()
+    data = len(bookings_schema.dump(lookup))
+    return jsonify({"infront" : data})
 
 # check if the user exists
 def user_exists(email,password):
@@ -359,6 +377,7 @@ def service_exists(name, branch_id):
     return data
 
 def get_last_ticket(service_name):
+    '''alse check last oneline ticket'''
     lookup = OnlineBooking.query.filter_by(service_name = service_name).order_by(desc(OnlineBooking.date_added)).first()
     booking_data = booking_schema.dump(lookup)
     return booking_data
@@ -381,7 +400,8 @@ def generate_ticket(booking_id):
             company = branch["company"]
             service_name = service["name"]
             date_added = booking["start"]
-            final ={"code" : code, "branch": branch_name, "company": company, "service": service_name,
+            booking_id = booking["id"]
+            final ={"booking_id": booking_id , "code" : code, "branch": branch_name, "company": company, "service": service_name,
                     "date": date_added }
         else:
             final = {"msg":"Details not Found"}
