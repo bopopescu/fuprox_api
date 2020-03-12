@@ -4,7 +4,7 @@ from flask import request,jsonify
 from fuprox import db,app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
                             , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
-                           OnlineBooking, OnlineBookingSchema)
+                           Booking, BookingSchema)
 import secrets
 from fuprox import bcrypt
 
@@ -14,6 +14,7 @@ from fuprox import bcrypt
 from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
 from sqlalchemy import desc,asc
+import logging
 
 # from fuprox.utilities import user_exists
 
@@ -34,8 +35,8 @@ services_offered_schema = ServiceOfferedSchema(many=True)
 service_schema = ServiceSchema()
 services_schema = ServiceSchema(many=True)
 
-booking_schema = OnlineBookingSchema()
-bookings_schema = OnlineBookingSchema(many=True)
+booking_schema = BookingSchema()
+bookings_schema = BookingSchema(many=True)
 
 #getting companiy schema
 company_schema = CompanySchema()
@@ -73,7 +74,8 @@ def adduser():
     email = request.json["email"]
     password= request.json["password"]
     # get user data
-    user_data = Customer.query.filter_by(email=email).first()
+    lookup = Customer.query.filter_by(email=email).first()
+    user_data = user_schema.dump(lookup)
     if not user_data:
         # hashing the password
         hashed_password = bcrypt.generate_password_hash(password)
@@ -95,6 +97,7 @@ def user_logout():
     token = request.json["token"]
     # remove token from db
     pass
+
 
 
 @app.route("/branch/get")
@@ -158,9 +161,9 @@ def get_book():
     if user_id_exists(user_id) and get_booking(booking_id):
         user = user_id_exists(user_id)
         booking = get_booking(booking_id)
-        if user['id'] == booking["user_id"]:
+        if user['id'] == booking["user"]:
             # return the ticket
-            data = OnlineBooking.query.get(booking_id)
+            data = Booking.query.get(booking_id)
             final = booking_schema.dump(data)
 
             if final:
@@ -172,7 +175,7 @@ def get_book():
                     "booking_id" : final["id"],
                     "service_name" : final["service_name"],
                     "serviced" : final["serviced"],
-                    "user_id" : final["user_id"],
+                    "user_id" : final["user"],
                     "start" : final["start"],
                     "code" : data["code"]+final["ticket"]
                 }
@@ -186,10 +189,13 @@ def get_book():
 @app.route("/book/make",methods=["POST"])
 def make_book():
     service_name = request.json["service_name"]
+    # start = datetime.now()
     start = request.json["start"]
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
-    booking = create_booking(service_name,user_id,start, branch_id)
+    is_instant = request.json["is_instant"]
+
+    booking = create_booking(service_name,start,branch_id,is_instant=bool(is_instant),user_id=user_id)
     if booking:
         final = generate_ticket(booking["id"])
     else:
@@ -200,8 +206,7 @@ def make_book():
 @app.route("/book/get/all", methods=["GET","POST"])
 def get_all_bookings():
     user_id = request.json["user_id"]
-    # generate_ticket()
-    if user_id_exists(user_id):
+    if is_user(user_id):
         res = get_user_bookings(user_id)
         tickets = list()
         for booking in res:
@@ -215,17 +220,16 @@ def get_all_bookings():
 
 # get user bookings
 @app.route("/book/get/user",methods=["POST"])
-def get_user_bookings():
+def get_user_bookings_():
     # geting post data
     user_id = request.json["user_id"]
     # make a database selection
-    data = OnlineBooking.query.filter_by(user_id=user_id).all()
+    data = Booking.query.filter_by(user=user_id).all()
     res = bookings_schema.dump(data)
     return jsonify({ "booking_data": res})
 
 
 # booking end
-
 @app.route("/company/get")
 def get_companies():
     companies = Company.query.all()
@@ -307,7 +311,7 @@ def service_offered():
 def ahead_of_you():
     service_name = request.json["service_name"]
     branch_id = request.json["branch_id"]
-    lookup = OnlineBooking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).all()
+    lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).all()
     data = len(bookings_schema.dump(lookup))
     return jsonify({"infront" : data})
 
@@ -326,46 +330,65 @@ def user_exists(email,password):
             "msg": "Bad Username/Password combination"
         }
     return jsonify(result)
+def is_user(user_id):
+    lookup = Customer.query.get(user_id)
+    user_data = user_schema.dump(lookup)
+    return user_data
 
 
-def create_booking(service_name,user_id,start,branch_id):
-    if service_exists(service_name,branch_id):
-        # get the service
-        data = service_exists(service_name,branch_id)
-        name = data["name"]
-        if get_last_ticket(service_name):
-            # get last ticket is active next == True
-            # get the last booking
-            book = get_last_ticket(service_name)
-            # if is active we can creat a next
-            is_active = book["active"]
-            is_serviced = book["serviced"]
-            if is_active:
-                # last booking active new booking should be next
-                last_ticket_number = book["ticket"]
-                next_ticket = int(last_ticket_number) + 1
-                final = make_booking(name,user_id, start, branch_id, next_ticket, upcoming=True)
-            elif is_serviced :
-                last_ticket_number = book["ticket"]
-                next_ticket = int(last_ticket_number) + 1
-                final = make_booking(name, user_id, start, branch_id, next_ticket, active=True)
+def ticket_queue(service_name,branch_id):
+    lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).order_by(desc(Booking.date_added)).first()
+    booking_data = booking_schema.dump(lookup)
+    return booking_data
+
+def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
+    if service_exists(service_name, branch_id):
+        if is_user(user_id):
+            final =""
+            print("user>>> data",is_user(user_id))
+            # get the service
+            data = service_exists(service_name, branch_id)
+            print("service_data",data)
+            name = data["name"]
+            if ticket_queue(service_name,branch_id):
+                # get last ticket is active next == True
+                # get the last booking
+                book = get_last_ticket(service_name)
+                # if is active we can creat a next
+                is_active = book["active"]
+                is_serviced = book["serviced"]
+                if is_active:
+                    # last booking active new booking should be next
+                    last_ticket_number = book["ticket"]
+                    next_ticket = int(last_ticket_number) + 1
+                    final = make_booking(name, start, branch_id, next_ticket, upcoming=True, instant=is_instant,user=user_id)
+                elif is_serviced:
+                    last_ticket_number = book["ticket"]
+                    next_ticket = int(last_ticket_number) + 1
+                    final = make_booking(name, start, branch_id, next_ticket, active=True, instant=is_instant,user=user_id)
+                else:
+                    # last booking next so this booking should just be a normal booking
+                    last_ticket_number = book["ticket"]
+                    next_ticket = int(last_ticket_number) + 1
+                    final = make_booking(name, start, branch_id, next_ticket, instant=is_instant,user=user_id)
             else:
-                # last booking next so this booking should just be a normal booking
-                last_ticket_number = book["ticket"]
-                next_ticket = int(last_ticket_number) + 1
-                final = make_booking(name,user_id, start, branch_id, next_ticket)
+                # we are making the first booking for this category
+                # we are going to make this ticket  active
+                next_ticket = 1
+                final = make_booking(name, start, branch_id, next_ticket, active=True, instant=is_instant,user=user_id)
         else:
-            # we are making the first booking for this category
-            # we are going to make this ticket  active
-            next_ticket = 1
-            final = make_booking(name, user_id, start, branch_id, next_ticket,active=True)
+            final = None
+            logging.info("user does not exist")
+
     else:
-        final = {"msg": "Service does not exist"}
+        final = None
+        logging.info("service does not exists")
     return final
 
 
-def make_booking(service_name,user_id, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,teller=000):
-    lookup = OnlineBooking(service_name, user_id, start, branch_id, ticket, active, upcoming, serviced, teller)
+def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
+                 teller=000, kind="1", user=0000, instant=False):
+    lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user, instant)
     db.session.add(lookup)
     db.session.commit()
     return booking_schema.dump(lookup)
@@ -378,7 +401,7 @@ def service_exists(name, branch_id):
 
 def get_last_ticket(service_name):
     '''alse check last oneline ticket'''
-    lookup = OnlineBooking.query.filter_by(service_name = service_name).order_by(desc(OnlineBooking.date_added)).first()
+    lookup = Booking.query.filter_by(service_name = service_name).order_by(desc(Booking.date_added)).first()
     booking_data = booking_schema.dump(lookup)
     return booking_data
 
@@ -411,12 +434,12 @@ def generate_ticket(booking_id):
 
 
 def get_booking(booking_id):
-    lookup = OnlineBooking.query.get(booking_id)
+    lookup = Booking.query.get(booking_id)
     data = booking_schema.dump(lookup)
     return data
 
 def get_user_bookings(user_id):
-    lookup = OnlineBooking.query.filter_by(user_id=user_id).all()
+    lookup = Booking.query.filter_by(user=user_id).all()
     data = bookings_schema.dump(lookup)
     return data
 

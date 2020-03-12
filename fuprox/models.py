@@ -161,3 +161,41 @@ class ServiceOfferedSchema(ma.Schema):
     class Meta:
         fields = ("id","branch_id","name","teller","date_added","date_expires","code")
 
+
+
+
+# creating a booking ID
+class Booking(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    service_name = db.Column(db.String(length=100), nullable=True)
+    start = db.Column(db.String(length=200))
+    branch_id = db.Column(db.Integer)
+    ticket = db.Column(db.String(length=6), nullable=False)
+    date_added = db.Column(db.DateTime, default=datetime.now)
+    active = db.Column(db.Boolean, default=False, nullable=False)
+    nxt = db.Column(db.Boolean, nullable=False, default=False)
+    serviced = db.Column(db.Boolean, nullable=False, default=False)
+    teller = db.Column(db.String(200), nullable=False, default=000000)
+    kind = db.Column(db.Integer, nullable=False)
+    user = db.Column(db.Integer)
+    is_instant = db.Column(db.Boolean, default=False)
+
+    def __init__(self, service_name, start, branch_id, ticket, active, nxt, serviced, teller, kind, user,
+                 instant):
+        self.service_name = service_name
+        self.start = start
+        self.branch_id = branch_id
+        self.ticket = ticket
+        self.active = active
+        self.nxt = nxt
+        self.serviced = serviced
+        self.teller = teller
+        self.kind = kind
+        self.user = user
+        self.is_instant = instant
+
+
+class BookingSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "service_name", "start", "branch_id", "ticket", "active", "next", "serviced","teller",\
+                  "kind","user","is_instant")
