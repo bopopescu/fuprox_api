@@ -22,6 +22,9 @@ import logging
 user_schema = CustomerSchema()
 users_schema = CustomerSchema(many=True)
 
+service_ = ServiceSchema()
+service_s = ServiceSchema(many=True)
+
 # branch schema
 
 branch_schema = BranchSchema()
@@ -99,13 +102,22 @@ def user_logout():
     pass
 
 
-
 @app.route("/branch/get")
 def get_all_branches():
     branches = Branch.query.all()
     # loop over the
     res = branches_schema.dump(branches)
-    return jsonify({"branches":res})
+    lst = list()
+    for item in res:
+        final = bool()
+        if branch_is_medical(item["id"]):
+            final = True
+        else:
+            final = False
+
+        item["is_medical"] = final
+        lst.append(item)
+    return jsonify({"branches":lst})
 
 
 @app.route("/branch/get/single", methods=["GET","POST"])
@@ -114,6 +126,13 @@ def get_user_branches():
     # make a database selection
     data = Branch.query.filter_by(id=branch_id).first()
     res = branch_schema.dump(data)
+    final = Bool()
+    if res :
+        if branch_is_medical(res["id"]):
+            final = True
+        else:
+            final = False
+    res["is_medical"] = final
     return jsonify(res)
 
 
@@ -141,7 +160,6 @@ def add_service():
     service = Service(name,description)
     db.session.add(service)
     db.session.commit()
-
     return service_schema.jsonify(service)
 
 
@@ -218,7 +236,6 @@ def get_all_bookings():
     return jsonify({"booking_data": res})
 
 
-# get user bookings
 @app.route("/book/get/user",methods=["POST"])
 def get_user_bookings_():
     # geting post data
@@ -226,7 +243,13 @@ def get_user_bookings_():
     # make a database selection
     data = Booking.query.filter_by(user=user_id).all()
     res = bookings_schema.dump(data)
-    return jsonify({ "booking_data": res})
+    final = list()
+    for item in res:
+         serv = "0"  if  item["serviced"]  else "1"
+         item["serviced"] = serv
+         final.append(item)
+    print(final)
+    return jsonify({ "booking_data":final})
 
 
 # booking end
@@ -236,13 +259,23 @@ def get_companies():
     company_data = companies_schema.dump(companies)
     return jsonify(company_data)
 
+
 #getting branch by company
 @app.route("/branch/by/company",methods=["POST"])
 def get_by_branch():
     company = request.json["company"]
     branch = Branch.query.filter_by(company=company).all()
     data = branches_schema.dump(branch)
-    return jsonify(data)
+    lst = list()
+    for item in data:
+        final = bool()
+        if branch_is_medical(item["id"]):
+            final = True
+        else:
+            final = False
+        item["is_medical"] = final
+        lst.append(item)
+    return jsonify(lst)
 
 
 @app.route("/branch/by/service",methods=["POST"])
@@ -250,6 +283,16 @@ def get_by_service():
     service = request.json["service"]
     branch = Branch.query.filter_by(service=service).all()
     data = branches_schema.dump(branch)
+    print("branch sarvice data",data)
+    lst = list()
+    for item in data:
+        final = bool()
+        if branch_is_medical(item["id"]):
+            final = True
+        else:
+            final = False
+        item["is_medical"] = final
+        lst.append(item)
     return jsonify(data)
 
 
@@ -297,8 +340,21 @@ def search_app():
     branch_lookup = Branch.query.filter(Branch.name.contains(term))
     branch_data_branch = branches_schema.dump(branch_lookup)
     final_branch_data_term = branch_data_branch
+    # update cunstomer data to add medical
     data = final_branch_data_term + final_branch_data_company
-    return  jsonify(data)
+    lst = list()
+    for item in data:
+        final = bool()
+        if branch_is_medical(item["id"]):
+            final = True
+        else:
+            final = False
+
+        item["is_medical"] = final
+        lst.append(item)
+
+    return  jsonify(lst)
+
 
 @app.route("/services/get/all",methods=["POST"])
 def service_offered():
@@ -306,6 +362,7 @@ def service_offered():
     lookup = ServiceOffered.query.filter_by(branch_id = branch_id).all()
     data = service_offers_schema.dump(lookup)
     return jsonify(data)
+
 
 @app.route("/ahead/of/you",methods=["POST"])
 def ahead_of_you():
@@ -315,10 +372,10 @@ def ahead_of_you():
     data = len(bookings_schema.dump(lookup))
     return jsonify({"infront" : data})
 
+
 # check if the user exists
 def user_exists(email,password):
     data = Customer.query.filter_by(email=email).first()
-    print(data)
     # checking for the password
     if data:
         if bcrypt.check_password_hash(data.password,password):
@@ -341,14 +398,13 @@ def ticket_queue(service_name,branch_id):
     booking_data = booking_schema.dump(lookup)
     return booking_data
 
+
 def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
     if service_exists(service_name, branch_id):
         if is_user(user_id):
             final =""
-            print("user>>> data",is_user(user_id))
             # get the service
             data = service_exists(service_name, branch_id)
-            print("service_data",data)
             name = data["name"]
             if ticket_queue(service_name,branch_id):
                 # get last ticket is active next == True
@@ -385,13 +441,22 @@ def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
         logging.info("service does not exists")
     return final
 
+'''add medical capability here to make sure there is not instant booking'''
 
 def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
                  teller=000, kind="1", user=0000, instant=False):
-    lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user, instant)
-    db.session.add(lookup)
-    db.session.commit()
-    return booking_schema.dump(lookup)
+    final = list()
+    if branch_is_medical(branch_id):
+        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user, instant)
+        db.session.add(lookup)
+        db.session.commit()
+        final = booking_schema.dump(lookup)
+    else:
+        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user,False)
+        db.session.add(lookup)
+        db.session.commit()
+        final = booking_schema.dump(lookup)
+    return final
 
 
 def service_exists(name, branch_id):
@@ -400,7 +465,7 @@ def service_exists(name, branch_id):
     return data
 
 def get_last_ticket(service_name):
-    '''alse check last oneline ticket'''
+    '''also check last oneline ticket'''
     lookup = Booking.query.filter_by(service_name = service_name).order_by(desc(Booking.date_added)).first()
     booking_data = booking_schema.dump(lookup)
     return booking_data
@@ -447,6 +512,23 @@ def user_id_exists(user_id):
     lookup = Customer.query.get(user_id)
     data = user_schema.dump(lookup)
     return data
+
+
+def branch_is_medical(branch_id):
+    branch_lookup = Branch.query.get(branch_id)
+    branch_data = branch_schema.dump(branch_lookup)
+    if branch_data:
+        lookup = Service.query.get(branch_data["id"])
+        service_data = service_.dump(lookup)
+        if service_data["is_medical"]:
+            service_data = True
+        else:
+            service_data = False
+    else:
+        service_data = None
+    return service_data
+
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=4000)

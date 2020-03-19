@@ -16,6 +16,7 @@ class Customer(db.Model):
         self.email = email
         self.password = password
 
+
 class CustomerSchema(ma.Schema):
     class Meta:
         fields = ("id", "email","password")
@@ -52,7 +53,6 @@ class Branch(db.Model):
     service = db.Column(db.String(length=50))
     description = db.Column(db.String(length=50))
 
-
     def __init__(self, name, company, longitude, latitude,opens,closes,service,description):
         self.name = name
         self.company = company
@@ -67,30 +67,26 @@ class Branch(db.Model):
 # creating branch Schema
 class BranchSchema(ma.Schema):
     class Meta:
-        fields = ('id','name','company','address','longitude','latitude','opens','closes','service','description')
+        fields = ('id','name','company','address','longitude','latitude','opens','closes','service','description',"")
 
 
-# creating a user class
-# creating a company class
 class Service(db.Model):
     id = db.Column(db.Integer,primary_key=True)
     name = db.Column(db.String(length=50))
     service = db.Column(db.String(length=250))
+    is_medical = db.Column(db.Boolean,default=False)
 
-    def __init__(self,name,service):
+    def __init__(self, name, service, is_medical):
         self.name = name
         self.service = service
-
-    def __repr__(self):
-        return f"Company {self.name} -> {self.service}"
+        self.is_medical = is_medical
 
 
 class ServiceSchema(ma.Schema):
     class Meta:
-        fields = ("id","name","service")
+        fields = ("id","name","service","is_medical")
 
-# booking model
-# creating a booking ID
+
 class OnlineBooking(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
@@ -121,7 +117,6 @@ class OnlineBookingSchema(ma.Schema):
         fields = ("id","user_id","service_name","start","branch_id","ticket","active","next","serviced")
 
 
-
 class Help(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     topic = db.Column(db.String(length=100), nullable=False)
@@ -141,27 +136,27 @@ class HelpSchema(ma.Schema):
 
 
 class ServiceOffered(db.Model):
-    id = db.Column(db.Integer,primary_key=True)
-    branch_id = db.Column(db.Integer,nullable=False)
-    name = db.Column(db.String(length=50),unique=True)
-    teller = db.Column(db.String(100),nullable=False)
-    date_added = db.Column(db.DateTime,default=datetime.now)
-    date_expires = db.Column(db.DateTime,nullable=False)
-    code = db.Column(db.String(length=10),nullable=False)
+    id = db.Column(db.Integer, primary_key=True)
+    branch_id = db.Column(db.Integer, nullable=False)
+    name = db.Column(db.String(length=50))
+    teller = db.Column(db.String(100), nullable=False)
+    date_added = db.Column(db.DateTime, default=datetime.now)
+    date_expires = db.Column(db.DateTime, nullable=False)
+    code = db.Column(db.String(length=10), nullable=False)
+    icon = db.Column(db.String(length=20))
 
-    def __init__(self,name,branch_id,teller,date_expires,code):
+    def __init__(self, name, branch_id, teller, date_expires, code, icon):
         self.name = name
         self.branch_id = branch_id
         self.teller = teller
         self.date_expires = date_expires
         self.code = code
+        self.icon = icon
 
 
 class ServiceOfferedSchema(ma.Schema):
     class Meta:
-        fields = ("id","branch_id","name","teller","date_added","date_expires","code")
-
-
+        fields = ("id", "branch_id", "name", "teller", "date_added", "date_expires", "code", "icon")
 
 
 # creating a booking ID
