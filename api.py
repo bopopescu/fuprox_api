@@ -261,7 +261,7 @@ def get_companies():
 
 
 #getting branch by company
-@app.route("/branch/by/company",methods=["POST"])
+@app.route("/""branch""/by/company",methods=["POST"])
 def get_by_branch():
     company = request.json["company"]
     branch = Branch.query.filter_by(company=company).all()
