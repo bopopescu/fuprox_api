@@ -16,6 +16,17 @@ from fuprox import bcrypt
 from sqlalchemy import desc,asc
 import logging
 
+import socketio
+import requests
+
+link = "http://localhost:4000"
+# standard Python
+sio = socketio.Client()
+
+
+
+
+
 # from fuprox.utilities import user_exists
 
 # adding some product schemas
@@ -108,6 +119,8 @@ def get_all_branches():
     # loop over the
     res = branches_schema.dump(branches)
     lst = list()
+    # here we are going to make a teller request to the socket
+    # sio.emit("teller",{"branch_id":res})
     for item in res:
         final = bool()
         if branch_is_medical(item["id"]):
@@ -126,7 +139,7 @@ def get_user_branches():
     # make a database selection
     data = Branch.query.filter_by(id=branch_id).first()
     res = branch_schema.dump(data)
-    final = Bool()
+    final = bool()
     if res :
         if branch_is_medical(res["id"]):
             final = True
@@ -211,11 +224,13 @@ def make_book():
     start = request.json["start"]
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
-    is_instant = request.json["is_instant"]
+    is_instant = True if request.json["is_instant"] else False
+    booking = create_booking(service_name,start,branch_id,is_instant=is_instant,user_id=user_id)
+    print("booking_",booking)
 
-    booking = create_booking(service_name,start,branch_id,is_instant=bool(is_instant),user_id=user_id)
     if booking:
         final = generate_ticket(booking["id"])
+        sio.emit("online", {"booking_data": booking})
     else:
         final = {"msg": "Error generating the ticket. Please Try again later."}
     return jsonify(final)
@@ -261,7 +276,7 @@ def get_companies():
 
 
 #getting branch by company
-@app.route("/""branch""/by/company",methods=["POST"])
+@app.route("/branch/by/company",methods=["POST"])
 def get_by_branch():
     company = request.json["company"]
     branch = Branch.query.filter_by(company=company).all()
@@ -373,6 +388,31 @@ def ahead_of_you():
     return jsonify({"infront" : data})
 
 
+@app.route("/ahead/of/you/id",methods=["POST"])
+def ahead_of_you_id():
+    branch_id = request.json["booking_id"]
+    return jsonify(ahead_of_you_id(branch_id))
+
+
+
+@app.route("/sycn/online/booking",methods=["POST"])
+def sync_bookings():
+    data= request.json["data"]
+    print("data <<>>><<>>",data)
+    service_name = data["service_name"]
+    start = data["start"]
+    branch_id= data["branch_id"]
+    is_instant = data["instant"]
+    user = data["user"]
+    ticket = data["ticket"]
+    is_active = True if data['active']  == "True" else False
+    if not booking_exists(branch_id,service_name,ticket) :
+        print("booking does not exists ")
+        final = create_booking_online(service_name,start,branch_id,ticket,is_instant,user,is_active)
+    else:
+        final = {"msg":"booking exists"}
+    return final
+
 # check if the user exists
 def user_exists(email,password):
     data = Customer.query.filter_by(email=email).first()
@@ -399,7 +439,7 @@ def ticket_queue(service_name,branch_id):
     return booking_data
 
 
-def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
+def create_booking(service_name, start, branch_id, is_instant,user_id):
     if service_exists(service_name, branch_id):
         if is_user(user_id):
             final =""
@@ -409,24 +449,14 @@ def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
             if ticket_queue(service_name,branch_id):
                 # get last ticket is active next == True
                 # get the last booking
-                book = get_last_ticket(service_name)
+                book = get_last_ticket(service_name,branch_id)
                 # if is active we can creat a next
                 is_active = book["active"]
                 is_serviced = book["serviced"]
-                if is_active:
-                    # last booking active new booking should be next
-                    last_ticket_number = book["ticket"]
-                    next_ticket = int(last_ticket_number) + 1
-                    final = make_booking(name, start, branch_id, next_ticket, upcoming=True, instant=is_instant,user=user_id)
-                elif is_serviced:
-                    last_ticket_number = book["ticket"]
-                    next_ticket = int(last_ticket_number) + 1
-                    final = make_booking(name, start, branch_id, next_ticket, active=True, instant=is_instant,user=user_id)
-                else:
-                    # last booking next so this booking should just be a normal booking
-                    last_ticket_number = book["ticket"]
-                    next_ticket = int(last_ticket_number) + 1
-                    final = make_booking(name, start, branch_id, next_ticket, instant=is_instant,user=user_id)
+                # last booking next so this booking should just be a normal booking
+                last_ticket_number = book["ticket"]
+                next_ticket = int(last_ticket_number) + 1
+                final = make_booking(name, start, branch_id, next_ticket, instant=is_instant,user=user_id)
             else:
                 # we are making the first booking for this category
                 # we are going to make this ticket  active
@@ -437,8 +467,13 @@ def create_booking(service_name, start, branch_id, is_instant=False,user_id=""):
             logging.info("user does not exist")
 
     else:
-        final = None
+        final = {'msg' : None}
         logging.info("service does not exists")
+    return final
+
+def create_booking_online(service_name, start, branch_id,ticket, is_instant=False,user_id="",is_active=False):
+    data = service_exists(service_name, branch_id)
+    final = make_booking(service_name, start, branch_id,ticket,False, is_active, instant=is_instant, user=user_id)
     return final
 
 '''add medical capability here to make sure there is not instant booking'''
@@ -447,12 +482,12 @@ def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, up
                  teller=000, kind="1", user=0000, instant=False):
     final = list()
     if branch_is_medical(branch_id):
-        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user, instant)
+        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user, False)
         db.session.add(lookup)
         db.session.commit()
         final = booking_schema.dump(lookup)
     else:
-        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user,False)
+        lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user,instant)
         db.session.add(lookup)
         db.session.commit()
         final = booking_schema.dump(lookup)
@@ -464,8 +499,11 @@ def service_exists(name, branch_id):
     data = service_offered_schema.dump(lookup)
     return data
 
-def get_last_ticket(service_name):
+def get_last_ticket(service_name,branch_id):
     '''also check last oneline ticket'''
+    # here we are going to get the last ticket ofline then make anew one base on thats
+    # emit("last_ticket",{"branch_id":branch_id,"service_name": service_name})
+
     lookup = Booking.query.filter_by(service_name = service_name).order_by(desc(Booking.date_added)).first()
     booking_data = booking_schema.dump(lookup)
     return booking_data
@@ -528,7 +566,80 @@ def branch_is_medical(branch_id):
         service_data = None
     return service_data
 
+def ahead_of_you_id(id):
+    booking_id = request.json["booking_id"]
+    lookup = Booking.query.get(booking_id)
+    lookup_data =  booking_schema.dump(lookup)
+    if lookup_data:
+        booking_lookup_two = Booking.query.filter_by(service_name=lookup_data["service_name"]).\
+            filter_by(branch_id=lookup_data["branch_id"]).filter_by(serviced=False).\
+            filter(Booking.date_added > lookup_data["start"] ).all()
+        final_booking_data = bookings_schema.dump(booking_lookup_two)
+        final = {"msg" : len(final_booking_data)}
+    else:
+        final  = {"msg" : None}
 
+    return final
+
+
+def booking_exists(branch,service,tckt):
+    lookup = Booking.query.filter_by(branch_id=branch).filter_by(service_name=service).filter_by(ticket=tckt).first()
+    data = booking_schema.dump(lookup)
+    return data
+
+
+
+
+@sio.event
+def connect():
+    print('connection established')
+
+@sio.event
+def teller(data):
+    print('message received with ', data)
+    sio.emit('teller', {'response': 'my response'})
+
+@sio.event
+def disconnect():
+    print('disconnected from server')
+
+
+@sio.on('online_data')
+def on_message(data):
+    print('I received a message! >>',data)
+
+
+@sio.on('online_data_')
+def on_message(data):
+    data = data["booking_data"]
+    is_instant = data["is_instant"]
+    service_name = data["service_name"]
+    user = data["user"]
+    active = data["active"]
+    ticket = data["ticket"]
+    start = data["start"]
+    id = data["id"]
+    kind = data["kind"]
+    serviced = data["serviced"]
+    branch_id = data["branch_id"]
+    final = {
+        "data": {
+            "instant": is_instant,
+            "service_name": service_name,
+            "user": user,
+            "active": active,
+            "ticket": ticket,
+            "start": start,
+            "id": id,
+            "kind": kind,
+            "serviced": serviced,
+            "branch_id": branch_id
+        }
+    }
+    requests.post(f"{link}/sycn/online/booking", json=final)
+
+sio.connect("http://localhost:5000/")
+print("my sid", sio.sid)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=4000)
