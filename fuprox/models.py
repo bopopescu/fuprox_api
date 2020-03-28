@@ -140,7 +140,7 @@ class ServiceOffered(db.Model):
     branch_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.String(length=50))
     teller = db.Column(db.String(100), nullable=False)
-    date_added = db.Column(db.DateTime, default=datetime.now)
+    date_added = db.Column(db.DateTime, default=datetime.now,unique=True)
     date_expires = db.Column(db.DateTime, nullable=False)
     code = db.Column(db.String(length=10), nullable=False)
     icon = db.Column(db.String(length=20))
@@ -194,3 +194,22 @@ class BookingSchema(ma.Schema):
     class Meta:
         fields = ("id", "service_name", "start", "branch_id", "ticket", "active", "next", "serviced","teller",\
                   "kind","user","is_instant")
+
+
+class Teller(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    number = db.Column(db.Integer, nullable=False, unique=True)
+    date_added = db.Column(db.DateTime, default=datetime.now)
+    branch = db.Column(db.Integer)
+    service = db.Column(db.String(200))
+
+    def __init__(self, number, branch, service):
+        self.number = number
+        self.branch = branch
+        self.service = service
+
+
+class TellerSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "number", "date_added", "branch", "service")
+

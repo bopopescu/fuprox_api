@@ -4,7 +4,7 @@ from flask import request,jsonify
 from fuprox import db,app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
                             , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
-                           Booking, BookingSchema)
+                           Booking, BookingSchema,TellerSchema, Teller)
 import secrets
 from fuprox import bcrypt
 
@@ -15,16 +15,13 @@ from fuprox.models import Customer,CustomerSchema
 from fuprox import bcrypt
 from sqlalchemy import desc,asc
 import logging
-
+import sqlalchemy
 import socketio
 import requests
 
 link = "http://localhost:4000"
 # standard Python
 sio = socketio.Client()
-
-
-
 
 
 # from fuprox.utilities import user_exists
@@ -65,6 +62,10 @@ helps_schema = HelpSchema(many=True)
 service_offer_schema = ServiceOfferedSchema()
 service_offers_schema = ServiceOfferedSchema(many=True)
 
+# teller schema
+teller_schema = TellerSchema()
+tellers_schema = TellerSchema(many=True)
+
 
 
 @app.route("/user/login",methods=["POST"])
@@ -96,7 +97,11 @@ def adduser():
         user = Customer(email, hashed_password)
         db.session.add(user)
         db.session.commit()
-        data = user_schema.jsonify(user)
+        data = user_schema.dump(user)
+        print("user adding data : ")
+        if data :
+            sio.emit("sync_online_user", {"user_data": data})
+            print("after emmit >>??>?")
     else:
         data = {
             "user": None,
@@ -398,7 +403,6 @@ def ahead_of_you_id():
 @app.route("/sycn/online/booking",methods=["POST"])
 def sync_bookings():
     data= request.json["data"]
-    print("data <<>>><<>>",data)
     service_name = data["service_name"]
     start = data["start"]
     branch_id= data["branch_id"]
@@ -412,6 +416,94 @@ def sync_bookings():
     else:
         final = {"msg":"booking exists"}
     return final
+
+
+@app.route("/sycn/offline/services",methods=["POST"])
+def sync_services():
+
+    data = request.json["final"]
+    name = data["name"]
+    teller = data["teller"]
+    date_expires = data["date_expires"]
+    branch_id = data["branch_id"]
+    code = data["code"]
+    icon_id = data["icon_id"]
+    try:
+        service = create_service(name,teller,date_expires,branch_id,code,icon_id)
+    except sqlalchemy.exc.IntegrityError:
+        print("Error! Could not create service.")
+    return service_schema.jsonify(service)
+
+
+
+@app.route('/sycn/offline/teller',methods=["POST"])
+def sycn_teller():
+    data = request.json["data"]
+    print("?????????????????::::::data",data)
+    service = data["service"]
+    branch = data["branch"]
+    number = data["number"]
+    teller = dict()
+    try:
+        teller = add_teller(number, branch, service)
+    except sqlalchemy.exc.IntegrityError:
+        print("Error! Could not add the record.")
+    return teller
+
+
+def add_teller(teller_number, branch_id, service_name):
+    # here we are going to ad teller details
+    if len(service_name.split(",")) > 1:
+        if services_exist(service_name, branch_id) and branch_exist(branch_id):
+            # get teller by name
+            if get_teller(teller_number):
+                final = {"msg": "Teller number exists"}, 500
+            else:
+                lookup = Teller(teller_number, branch_id, service_name)
+                db.session.add(lookup)
+                db.session.commit()
+                final = teller_schema.dump(lookup)
+        else:
+            final = {"msg": "branch/service name error. Make sure service name and branch name exists. many"}
+    else:
+        if branch_exist(branch_id) and service_exists(service_name, branch_id):
+            # get teller by name
+            if get_teller(teller_number):
+                final = {"msg": "Teller number exists"}, 500
+            else:
+                lookup = Teller(teller_number, branch_id, service_name)
+                db.session.add(lookup)
+                db.session.commit()
+                final = teller_schema.dump(lookup)
+        else:
+            final = {"msg": "branch/service name error. Make sure service name and branch name exists. single"}, 500
+
+    return final
+
+
+
+def create_service(name, teller, date_expires, branch_id, code, icon_id):
+    if branch_exist(branch_id):
+        final = None
+        if service_exists(name, branch_id):
+            final = {"msg": "Error service name already exists"}
+        else:
+            if get_service_code(code, branch_id):
+                final = {"msg": "Error Code already exists"}
+            else:
+                # check if icon exists for the branch
+                # if icon_exists(icon_id, branch_id):
+                service = ServiceOffered(name, branch_id, teller, date_expires, code, 1)
+                db.session.add(service)
+                db.session.commit()
+                final = service_schema.dump(service)
+
+                # else:
+                #     final = {"msg": "Icon Does not exist for the provided branch"}
+    else:
+        final = {"msg": "Service/Branch issue"}
+    return final
+
 
 # check if the user exists
 def user_exists(email,password):
@@ -431,6 +523,12 @@ def is_user(user_id):
     lookup = Customer.query.get(user_id)
     user_data = user_schema.dump(lookup)
     return user_data
+
+
+def get_teller(number):
+    lookup = Teller.query.filter_by(number=number).first()
+    data = teller_schema.dump(lookup)
+    return data
 
 
 def ticket_queue(service_name,branch_id):
@@ -465,7 +563,6 @@ def create_booking(service_name, start, branch_id, is_instant,user_id):
         else:
             final = None
             logging.info("user does not exist")
-
     else:
         final = {'msg' : None}
         logging.info("service does not exists")
@@ -587,6 +684,10 @@ def booking_exists(branch,service,tckt):
     data = booking_schema.dump(lookup)
     return data
 
+def get_service_code(code, branch_id):
+    lookup = ServiceOffered.query.filter_by(name=code).filter_by(branch_id=branch_id).first()
+    data = service_schema.dump(lookup)
+    return data
 
 
 
@@ -610,7 +711,7 @@ def on_message(data):
 
 
 @sio.on('online_data_')
-def on_message(data):
+def online_data(data):
     data = data["booking_data"]
     is_instant = data["is_instant"]
     service_name = data["service_name"]
@@ -638,7 +739,59 @@ def on_message(data):
     }
     requests.post(f"{link}/sycn/online/booking", json=final)
 
-sio.connect("http://localhost:5000/")
+
+
+@sio.on('sync_service_')
+def sync_service (data):
+    name = data["name"]
+    teller = data["teller"]
+    date_expires = data["date_expires"]
+    branch_id = data["branch_id"]
+    code = data["code"]
+    icon_id = data["icon"]
+    final = {
+        "final": {
+            "name": name,
+            "teller": teller,
+            "date_expires": date_expires,
+            "branch_id": branch_id,
+            "code": code,
+            "icon_id": icon_id,
+        }
+    }
+    requests.post(f"{link}/sycn/offline/services",json=final)
+
+#add_teller_data
+
+@sio.on("add_teller_data")
+def add_teller_data (data):
+    print("teller_data>><>><>??????",data)
+    data = data["teller_data"]
+    service = data["service"]
+    branch = data['branch']
+    number = data["number"]
+    id = data["id"]
+    date_added = data["date_added"]
+
+    final = {
+        "data" : {
+                    "service" : service,
+                    "branch" : branch,
+                    "number" : number,
+                    "id" : id,
+                    "date_added" : date_added,
+                }
+    }
+    
+    print("teller data >><<<<<<>>", data)
+    requests.post(f"{link}/sycn/offline/teller",json=final)
+
+
+try:
+    sio.connect("http://localhost:5000/")
+except socketio.exceptions.ConnectionError:
+    print("Error! Could not connect to the socket server.")
+
 print("my sid", sio.sid)
 
 if __name__ == "__main__":
