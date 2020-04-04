@@ -412,7 +412,11 @@ def sync_bookings():
     is_active = True if data['active']  == "True" else False
     if not booking_exists(branch_id,service_name,ticket) :
         print("booking does not exists ")
-        final = create_booking_online(service_name,start,branch_id,ticket,is_instant,user,is_active)
+        final = dict()
+        try:
+            final = create_booking_online(service_name, start, branch_id, ticket, is_instant, user, is_active)
+        except sqlalchemy.exc.IntegrityError:
+            ("Error! Could not create booking.")
     else:
         final = {"msg":"booking exists"}
     return final
@@ -789,9 +793,10 @@ def add_teller_data (data):
 
 try:
     sio.connect("http://localhost:5000/")
+    # sio.connect("http://sockets.fuprox.com/")
 except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
-
+# --
 print("my sid", sio.sid)
 
 if __name__ == "__main__":
