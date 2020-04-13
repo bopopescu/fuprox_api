@@ -363,6 +363,7 @@ def search_app():
     # update cunstomer data to add medical
     data = final_branch_data_term + final_branch_data_company
     lst = list()
+
     for item in data:
         final = bool()
         if branch_is_medical(item["id"]):
@@ -370,7 +371,8 @@ def search_app():
         else:
             final = False
 
-        item["is_medical"] = final
+        med = {f"{item['is_medical']}": final}
+        item.append(med)
         lst.append(item)
 
     return  jsonify(lst)
@@ -424,7 +426,6 @@ def sync_bookings():
 
 @app.route("/sycn/offline/services",methods=["POST"])
 def sync_services():
-
     data = request.json["final"]
     name = data["name"]
     teller = data["teller"]
@@ -501,7 +502,7 @@ def create_service(name, teller, date_expires, branch_id, code, icon_id):
                 db.session.add(service)
                 db.session.commit()
                 final = service_schema.dump(service)
-
+                print(final)
                 # else:
                 #     final = {"msg": "Icon Does not exist for the provided branch"}
     else:
@@ -657,7 +658,7 @@ def branch_is_medical(branch_id):
     branch_lookup = Branch.query.get(branch_id)
     branch_data = branch_schema.dump(branch_lookup)
     if branch_data:
-        lookup = Service.query.get(branch_data["id"])
+        lookup = Service.query.get(branch_data["service"])
         service_data = service_.dump(lookup)
         if service_data["is_medical"]:
             service_data = True
@@ -747,9 +748,12 @@ def online_data(data):
 
 @sio.on('sync_service_')
 def sync_service (data):
+    # {'id': 5, 'date_added': '2020-04-13T12:17:04', 'branch_id': 1, 'name': 'Mostly', 'icon': '1', 'code': 'MST',
+    #  'teller': ''}
+
     name = data["name"]
     teller = data["teller"]
-    date_expires = data["date_expires"]
+    date_expires = data["date_added"]
     branch_id = data["branch_id"]
     code = data["code"]
     icon_id = data["icon"]
@@ -763,13 +767,13 @@ def sync_service (data):
             "icon_id": icon_id,
         }
     }
+    print("sync service >><<<<<<>>", final)
     requests.post(f"{link}/sycn/offline/services",json=final)
 
 #add_teller_data
 
 @sio.on("add_teller_data")
 def add_teller_data (data):
-    print("teller_data>><>><>??????",data)
     data = data["teller_data"]
     service = data["service"]
     branch = data['branch']
