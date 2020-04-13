@@ -231,8 +231,6 @@ def make_book():
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
     booking = create_booking(service_name,start,branch_id,is_instant=is_instant,user_id=user_id)
-    print("booking_",booking)
-
     if booking:
         final = generate_ticket(booking["id"])
         sio.emit("online", {"booking_data": booking})
@@ -370,9 +368,9 @@ def search_app():
             final = True
         else:
             final = False
-
-        med = {f"{item['is_medical']}": final}
-        item.append(med)
+            print(">>><<>>><<>>",final)
+        med = {"is_medical": final }
+        item.update(med)
         lst.append(item)
 
     return  jsonify(lst)
@@ -390,8 +388,8 @@ def service_offered():
 def ahead_of_you():
     service_name = request.json["service_name"]
     branch_id = request.json["branch_id"]
-    lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).all()
-    data = len(bookings_schema.dump(lookup))
+    lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).filter_by(serviced=False).all()
+    data = len(bookings_schema.dump(lookup)) - 1 if len(bookings_schema.dump(lookup)) else 0
     return jsonify({"infront" : data})
 
 
@@ -544,6 +542,7 @@ def ticket_queue(service_name,branch_id):
 
 def create_booking(service_name, start, branch_id, is_instant,user_id):
     if service_exists(service_name, branch_id):
+
         if is_user(user_id):
             final =""
             # get the service
@@ -572,6 +571,8 @@ def create_booking(service_name, start, branch_id, is_instant,user_id):
         final = {'msg' : None}
         logging.info("service does not exists")
     return final
+
+
 
 def create_booking_online(service_name, start, branch_id,ticket, is_instant=False,user_id="",is_active=False):
     data = service_exists(service_name, branch_id)

@@ -135,28 +135,28 @@ class HelpSchema(ma.Schema):
         fields = ("id","topic","title","solution","date_added")
 
 
+
 class ServiceOffered(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     branch_id = db.Column(db.Integer, nullable=False)
     name = db.Column(db.String(length=50))
-    teller = db.Column(db.String(100), nullable=False)
-    date_added = db.Column(db.DateTime, default=datetime.now,unique=True)
-    date_expires = db.Column(db.DateTime, nullable=False)
+    teller = db.Column(db.String(100), nullable=True)
+    date_added = db.Column(db.DateTime, default=datetime.now)
+    # date_expires = db.Column(db.DateTime, nullable=False)
     code = db.Column(db.String(length=10), nullable=False)
     icon = db.Column(db.String(length=20))
 
-    def __init__(self, name, branch_id, teller, date_expires, code, icon):
+    def __init__(self, name, branch_id, teller, code, icon):
         self.name = name
         self.branch_id = branch_id
         self.teller = teller
-        self.date_expires = date_expires
         self.code = code
         self.icon = icon
 
 
 class ServiceOfferedSchema(ma.Schema):
     class Meta:
-        fields = ("id", "branch_id", "name", "teller", "date_added", "date_expires", "code", "icon")
+        fields = ("id", "branch_id", "name", "teller", "date_added", "code", "icon")
 
 
 # creating a booking ID
