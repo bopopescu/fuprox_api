@@ -44,16 +44,18 @@ class CompanySchema(ma.Schema):
 # creating a branch class
 class Branch(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(length=100))
-    company = db.Column(db.String(length=11))
+    name = db.Column(db.String(length=100),unique=True)
+    company = db.Column(db.Integer,db.ForeignKey("company.id"),nullable=False)
     longitude = db.Column(db.String(length=50))
     latitude = db.Column(db.String(length=50))
     opens = db.Column(db.String(length=50))
     closes = db.Column(db.String(length=50))
-    service = db.Column(db.String(length=50))
+    service = db.Column(db.Integer,db.ForeignKey("service.id"))
     description = db.Column(db.String(length=50))
+    key_ = db.Column(db.Text)
+    valid_till = db.Column(db.DateTime)
 
-    def __init__(self, name, company, longitude, latitude,opens,closes,service,description):
+    def __init__(self, name, company, longitude, latitude, opens, closes, service, description,key_):
         self.name = name
         self.company = company
         self.longitude = longitude
@@ -62,12 +64,13 @@ class Branch(db.Model):
         self.closes = closes
         self.service = service
         self.description = description
+        self.key_ = key_
 
 
 # creating branch Schema
 class BranchSchema(ma.Schema):
     class Meta:
-        fields = ('id','name','company','address','longitude','latitude','opens','closes','service','description',"")
+        fields = ('id', 'name', 'company', 'address', 'longitude', 'latitude', 'opens', 'closes', 'service', 'description', "key_","valid_till")
 
 
 class Service(db.Model):

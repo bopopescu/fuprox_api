@@ -424,15 +424,23 @@ def sync_bookings():
 
 @app.route("/sycn/offline/services",methods=["POST"])
 def sync_services():
-    data = request.json["final"]
-    name = data["name"]
-    teller = data["teller"]
-    date_expires = data["date_expires"]
-    branch_id = data["branch_id"]
-    code = data["code"]
-    icon_id = data["icon_id"]
+    '''
+    {'key': 'c4901b3161fc41c7d0151803ec5314a72878904d3f1b4a2ff023de35740b741b',
+    'code': 'SD', 'date_added': '2020-04-13T22:39:39', 'icon': '4', 'id': 35, 'teller': '',
+     'branch_id': 6, 'name': 'Said'}
+
+    :return:
+    '''
+    name = request.json["name"]
+    teller = request.json["teller"]
+    branch_id = request.json["branch_id"]
+    code = request.json["code"]
+    icon_id = request.json["icon"]
+    key = request.json["key"]
     try:
-        service = create_service(name,teller,date_expires,branch_id,code,icon_id)
+        key_data = get_online_by_key(key)
+        if key_data:
+            service = create_service(name,teller,key_data["id"],code,icon_id)
     except sqlalchemy.exc.IntegrityError:
         print("Error! Could not create service.")
     return service_schema.jsonify(service)
@@ -452,6 +460,11 @@ def sycn_teller():
     except sqlalchemy.exc.IntegrityError:
         print("Error! Could not add the record.")
     return teller
+
+def get_online_by_key(key):
+    lookup = Branch.query.filter_by(key_=key).first()
+    lookup_data = branch_schema.dump(lookup)
+    return lookup_data
 
 
 def add_teller(teller_number, branch_id, service_name):
@@ -485,7 +498,8 @@ def add_teller(teller_number, branch_id, service_name):
 
 
 
-def create_service(name, teller, date_expires, branch_id, code, icon_id):
+def create_service(name, teller, branch_id, code, icon_id):
+    print("branch  exists",branch_exist(branch_id))
     if branch_exist(branch_id):
         final = None
         if service_exists(name, branch_id):
@@ -494,17 +508,34 @@ def create_service(name, teller, date_expires, branch_id, code, icon_id):
             if get_service_code(code, branch_id):
                 final = {"msg": "Error Code already exists"}
             else:
-                # check if icon exists for the branch
-                # if icon_exists(icon_id, branch_id):
-                service = ServiceOffered(name, branch_id, teller, date_expires, code, 1)
+                service = ServiceOffered(name, branch_id, teller, code, 1)
                 db.session.add(service)
                 db.session.commit()
                 final = service_schema.dump(service)
-                print(final)
-                # else:
-                #     final = {"msg": "Icon Does not exist for the provided branch"}
     else:
         final = {"msg": "Service/Branch issue"}
+    return final
+
+def create_service(name, teller, branch_id, code, icon_id):
+    if branch_exist(branch_id):
+        final = None
+        if service_exists(name, branch_id):
+            final = {"msg": "Error service name already exists", "status": None}
+        else:
+            if get_service_code(code, branch_id):
+                final = {"msg": "Error Code already exists", "status": None}
+            else:
+                # check if icon exists for the branch
+                # if icon_exists(icon_id, branch_id):
+                # lookup = Icon.query.get(icon_id)
+                # data = icon_schema.dump(lookup)
+                # if data:
+                    service = ServiceOffered(name, branch_id, teller, code, 1)
+                    db.session.add(service)
+                    db.session.commit()
+                    final = service_schema.dump(service)
+    else:
+        final = {"msg": "Service/Branch issue", "status": None}
     return final
 
 
@@ -749,27 +780,8 @@ def online_data(data):
 
 @sio.on('sync_service_')
 def sync_service (data):
-    # {'id': 5, 'date_added': '2020-04-13T12:17:04', 'branch_id': 1, 'name': 'Mostly', 'icon': '1', 'code': 'MST',
-    #  'teller': ''}
-
-    name = data["name"]
-    teller = data["teller"]
-    date_expires = data["date_added"]
-    branch_id = data["branch_id"]
-    code = data["code"]
-    icon_id = data["icon"]
-    final = {
-        "final": {
-            "name": name,
-            "teller": teller,
-            "date_expires": date_expires,
-            "branch_id": branch_id,
-            "code": code,
-            "icon_id": icon_id,
-        }
-    }
-    print("sync service >><<<<<<>>", final)
-    requests.post(f"{link}/sycn/offline/services",json=final)
+    print("data >>>>>><<>>",data)
+    requests.post(f"{link}/sycn/offline/services",json=data)
 
 #add_teller_data
 
