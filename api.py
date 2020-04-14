@@ -380,7 +380,10 @@ def search_app():
 def service_offered():
     branch_id = request.json["branch_id"]
     lookup = ServiceOffered.query.filter_by(branch_id = branch_id).all()
+    lookup_ = db.session.query(ServiceOffered.branch_id,ServiceOffered.teller,ServiceOffered.date_added,ServiceOffered.code,ServiceOffered.icon,ServiceOffered.name).distinct()
     data = service_offers_schema.dump(lookup)
+    data_ = service_offers_schema.dump(lookup)
+    print(data_)
     return jsonify(data)
 
 
