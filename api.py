@@ -19,6 +19,7 @@ import sqlalchemy
 import socketio
 import requests
 import time
+import eventlet
 
 link = "http://localhost:4000"
 # standard Python
@@ -99,7 +100,6 @@ def adduser():
         print("user adding data : ")
         if data:
             sio.emit("sync_online_user", {"user_data": data})
-            print("after emmit >>??>?")
     else:
         data = {
             "user": None,
@@ -413,12 +413,16 @@ def sync_bookings():
     is_instant = data["instant"]
     user = data["user"]
     ticket = data["ticket"]
+    key_ = data["key_"]
+    print("we are here>>>>>>>>")
     is_active = True if data['active'] == "True" else False
-    if not booking_exists(branch_id, service_name, ticket):
+    print("bookin exist",booking_exists(branch_id, service_name, ticket))
+    if booking_exists(branch_id, service_name, ticket):
         print("booking does not exists ")
         final = dict()
         try:
-            final = create_booking_online(service_name, start, branch_id, ticket, is_instant, user, is_active)
+            final = create_booking_offline(service_name, start, branch_id, ticket, is_instant, user, is_active,key_)
+            print("final >>>>>>",final)
         except sqlalchemy.exc.IntegrityError:
             ("Error! Could not create booking.")
     else:
@@ -469,6 +473,13 @@ def get_online_by_key(key):
     lookup = Branch.query.filter_by(key_=key).first()
     lookup_data = branch_schema.dump(lookup)
     return lookup_data
+
+def services_exist(services, branch_id):
+    holder = services.split(",")
+    for item in holder:
+        if not service_exists(item, branch_id):
+            return False
+    return True
 
 
 def add_teller(teller_number, branch_id, service_name):
@@ -617,7 +628,33 @@ def create_booking_online(service_name, start, branch_id, ticket, is_instant=Fal
     return final
 
 
+
+def create_booking_offline(service_name, start, branch_id, ticket, is_instant=False, user_id="", is_active=False,key=""):
+    data = service_exists(service_name, branch_id)
+    final = make_offline_booking(service_name, start, branch_id, ticket, False, is_active, instant=is_instant, user=user_id,key=key)
+    print("create_offline_booking",final)
+    return final
 '''add medical capability here to make sure there is not instant booking'''
+
+
+
+def make_offline_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
+                 teller=000, kind="1", user=0000, instant=False,key=""):
+    final = list()
+    # get branch by key
+    online_branch_data = get_online_by_key(key)
+    print("online_branch_data",online_branch_data)
+
+    #  get it id
+    # use this id as the booking id appropriately
+    branch_data = branch_exist(branch_id)
+    if online_branch_data:
+        lookup = Booking(service_name, start, online_branch_data["id"], ticket, active, upcoming, serviced, teller, kind, user, False)
+        db.session.add(lookup)
+        db.session.commit()
+        final = booking_schema.dump(lookup)
+        print("final_booking",final)
+    return final
 
 
 def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
@@ -772,13 +809,9 @@ def disconnect():
     print('disconnected from server')
 
 
-@sio.on('online_data')
-def on_message(data):
-    print('I received a message! >>', data)
-
-
 @sio.on('online_data_')
 def online_data(data):
+    print("data >>>>",data)
     data = data["booking_data"]
     is_instant = data["is_instant"]
     service_name = data["service_name"]
@@ -790,6 +823,7 @@ def online_data(data):
     kind = data["kind"]
     serviced = data["serviced"]
     branch_id = data["branch_id"]
+    key_ = data["key_"]
     final = {
         "data": {
             "instant": is_instant,
@@ -801,7 +835,8 @@ def online_data(data):
             "id": id,
             "kind": kind,
             "serviced": serviced,
-            "branch_id": branch_id
+            "branch_id": branch_id,
+            "key_" : key_
         }
     }
     requests.post(f"{link}/sycn/online/booking", json=final)
@@ -809,7 +844,6 @@ def online_data(data):
 
 @sio.on('sync_service_')
 def sync_service(data):
-    print("data >>>>>><<>>", data)
     requests.post(f"{link}/sycn/offline/services", json=data)
 
 
@@ -846,3 +880,5 @@ print("my sid", sio.sid)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=4000)
+    # eventlet.wsgi.server(eventlet.listen(('', 1000)), app)
+
