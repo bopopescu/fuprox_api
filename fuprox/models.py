@@ -171,7 +171,7 @@ class Booking(db.Model):
     ticket = db.Column(db.String(length=6), nullable=False)
     date_added = db.Column(db.DateTime, default=datetime.now)
     active = db.Column(db.Boolean, default=False, nullable=False)
-    nxt = db.Column(db.Boolean, nullable=False, default=False)
+    nxt = db.Column(db.Integer, nullable=False)
     serviced = db.Column(db.Boolean, nullable=False, default=False)
     teller = db.Column(db.String(200), nullable=False, default=000000)
     kind = db.Column(db.Integer, nullable=False)
@@ -185,13 +185,12 @@ class Booking(db.Model):
         self.branch_id = branch_id
         self.ticket = ticket
         self.active = active
-        self.nxt = nxt
+        self.nxt = 1001
         self.serviced = serviced
         self.teller = teller
         self.kind = kind
         self.user = user
         self.is_instant = instant
-
 
 class BookingSchema(ma.Schema):
     class Meta:

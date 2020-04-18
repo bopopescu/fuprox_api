@@ -250,7 +250,6 @@ def get_all_bookings():
         res = tickets
     else:
         res = {"msg": "user does not exist"}, 500
-
     return jsonify({"booking_data": res})
 
 
@@ -368,7 +367,6 @@ def search_app():
             final = True
         else:
             final = False
-            print(">>><<>>><<>>", final)
         med = {"is_medical": final}
         item.update(med)
         lst.append(item)
@@ -379,13 +377,14 @@ def search_app():
 @app.route("/services/get/all", methods=["POST"])
 def service_offered():
     branch_id = request.json["branch_id"]
-    # lookup = ServiceOffered.query.filter_by(branch_id=branch_id).all()
-    lookup_ = db.session.query(ServiceOffered.branch_id, ServiceOffered.teller, ServiceOffered.date_added,
-                               ServiceOffered.code, ServiceOffered.icon, ServiceOffered.name).distinct()
-    # data = service_offers_schema.dump(lookup)
-    data_ = service_offers_schema.dump(lookup_)
-    print(data_)
-    return jsonify(data_)
+    lookup = ServiceOffered.query.filter_by(branch_id=branch_id).all()
+    data = service_offers_schema.dump(lookup)
+    final = list()
+
+    for item in range(0,len(data)) :
+        if item %2 == 0:
+            final.append(data[item])
+    return jsonify(final)
 
 
 @app.route("/ahead/of/you", methods=["POST"])
@@ -414,15 +413,12 @@ def sync_bookings():
     user = data["user"]
     ticket = data["ticket"]
     key_ = data["key_"]
-    print("we are here>>>>>>>>")
     is_active = True if data['active'] == "True" else False
-    print("bookin exist",booking_exists(branch_id, service_name, ticket))
-    if booking_exists(branch_id, service_name, ticket):
-        print("booking does not exists ")
+    print("booking exist",booking_exists(branch_id, service_name, ticket))
+    if not booking_exists(branch_id, service_name, ticket):
         final = dict()
         try:
-            final = create_booking_offline(service_name, start, branch_id, ticket, is_instant, user, is_active,key_)
-            print("final >>>>>>",final)
+            final = create_booking_online_(service_name,start,branch_id,is_instant,user,kind=ticket,key=key_)
         except sqlalchemy.exc.IntegrityError:
             ("Error! Could not create booking.")
     else:
@@ -457,7 +453,6 @@ def sync_services():
 @app.route('/sycn/offline/teller', methods=["POST"])
 def sycn_teller():
     data = request.json["data"]
-    print("?????????????????::::::data", data)
     service = data["service"]
     branch = data["branch"]
     number = data["number"]
@@ -468,6 +463,28 @@ def sycn_teller():
         print("Error! Could not add the record.")
     return teller
 
+
+@app.route("/update/ticket",methods=["POST"])
+def update_tickets_():
+    # get branch by key
+    key = request.json["key"]
+    service_name = request.json["service_name"]
+    branch_id= request.json["branch_id"]
+    ticket = request.json["ticket"]
+    branch_data = get_online_by_key(key)
+    final = dict()
+    if branch_data:
+        # online booking
+        booking_lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_data["id"]).\
+            filter_by(ticket=ticket).first()
+        booking_data = booking_schema.dump(booking_lookup)
+        if booking_data:
+            # make this booking active
+            booking_lookup.serviced = True
+            db.session.commit()
+            final = booking_schema.dump(booking_lookup)
+
+    return final
 
 def get_online_by_key(key):
     lookup = Branch.query.filter_by(key_=key).first()
@@ -628,33 +645,57 @@ def create_booking_online(service_name, start, branch_id, ticket, is_instant=Fal
     return final
 
 
+def update_branch_offline(key):
+    lookup = Branch.query.filter_by(key_=key).first()
+    lookup_data = branch_schema.dump(lookup)
+    return lookup_data
 
-def create_booking_offline(service_name, start, branch_id, ticket, is_instant=False, user_id="", is_active=False,key=""):
-    data = service_exists(service_name, branch_id)
-    final = make_offline_booking(service_name, start, branch_id, ticket, False, is_active, instant=is_instant, user=user_id,key=key)
-    print("create_offline_booking",final)
+
+
+def create_booking_online_(service_name, start, branch_id_, is_instant=False, user=0, kind=0, key=""):
+    data_ = update_branch_offline(key)
+    print("key data >>>",data_)
+    branch_id = data_["id"] if data_ else 1
+    if branch_is_medical(branch_id):
+        if service_exists(service_name, branch_id):
+            # get the service
+            data = service_exists(service_name, branch_id)
+            name = data["name"]
+            if ticket_queue(service_name, branch_id):
+                book = ticket_queue(service_name, branch_id)
+                last_ticket_number = book["ticket"]
+                next_ticket = int(last_ticket_number) + 1
+                final = make_booking(name, start, branch_id, next_ticket, instant=False, user=user, kind=kind)
+            else:
+                # we are making the first booking for this category
+                # we are going to make this ticket  active
+                next_ticket = 1
+                final = make_booking(name, start, branch_id, next_ticket, active=False, instant=False, user=user,
+                                     kind=kind)
+        else:
+            final = None
+    else:
+        if service_exists(service_name, branch_id):
+            # get the service
+            data = service_exists(service_name, branch_id)
+            name = data["name"]
+            if ticket_queue(service_name, branch_id):
+                book = ticket_queue(service_name, branch_id)
+                last_ticket_number = book["ticket"]
+                next_ticket = int(last_ticket_number) + 1
+                final = make_booking(name, start, branch_id, next_ticket, instant=is_instant, user=user, kind=kind)
+            else:
+                # we are making the first booking for this category
+                # we are going to make this ticket  active
+                next_ticket = 1
+                final = make_booking(name, start, branch_id, next_ticket, active=False, instant=is_instant, user=user,
+                                     kind=kind)
+        else:
+            final = None
+
+    print("the final output of the fuction >>>>",final)
     return final
-'''add medical capability here to make sure there is not instant booking'''
 
-
-
-def make_offline_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
-                 teller=000, kind="1", user=0000, instant=False,key=""):
-    final = list()
-    # get branch by key
-    online_branch_data = get_online_by_key(key)
-    print("online_branch_data",online_branch_data)
-
-    #  get it id
-    # use this id as the booking id appropriately
-    branch_data = branch_exist(branch_id)
-    if online_branch_data:
-        lookup = Booking(service_name, start, online_branch_data["id"], ticket, active, upcoming, serviced, teller, kind, user, False)
-        db.session.add(lookup)
-        db.session.commit()
-        final = booking_schema.dump(lookup)
-        print("final_booking",final)
-    return final
 
 
 def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, upcoming=False, serviced=False,
@@ -847,6 +888,12 @@ def sync_service(data):
     requests.post(f"{link}/sycn/offline/services", json=data)
 
 
+
+@sio.on("update_ticket_data")
+def update_ticket_data(data):
+    print("update ticket data >>>",data)
+    requests.post(f"{link}/update/ticket", json=data)
+
 # add_teller_data
 
 @sio.on("add_teller_data")
@@ -880,5 +927,6 @@ print("my sid", sio.sid)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True, port=4000)
-    # eventlet.wsgi.server(eventlet.listen(('', 1000)), app)
+    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+
 
