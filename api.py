@@ -19,7 +19,7 @@ import sqlalchemy
 import socketio
 import requests
 import time
-import eventlet
+import eventlet.wsgi
 
 link = "http://localhost:4000"
 # standard Python
@@ -97,7 +97,6 @@ def adduser():
         db.session.add(user)
         db.session.commit()
         data = user_schema.dump(user)
-        print("user adding data : ")
         if data:
             sio.emit("sync_online_user", {"user_data": data})
     else:
@@ -255,7 +254,7 @@ def get_all_bookings():
 
 @app.route("/book/get/user", methods=["POST"])
 def get_user_bookings_():
-    # geting post data
+    # getting post data
     user_id = request.json["user_id"]
     # make a database selection
     data = Booking.query.filter_by(user=user_id).all()
@@ -265,7 +264,6 @@ def get_user_bookings_():
         serv = "0" if item["serviced"] else "1"
         item["serviced"] = serv
         final.append(item)
-    print(final)
     return jsonify({"booking_data": final})
 
 
@@ -300,7 +298,6 @@ def get_by_service():
     service = request.json["service"]
     branch = Branch.query.filter_by(service=service).all()
     data = branches_schema.dump(branch)
-    print("branch sarvice data", data)
     lst = list()
     for item in data:
         final = bool()
@@ -393,7 +390,7 @@ def ahead_of_you():
     branch_id = request.json["branch_id"]
     lookup = Booking.query.filter_by(service_name=service_name).filter_by(branch_id=branch_id).filter_by(
         serviced=False).all()
-    data = len(bookings_schema.dump(lookup)) - 1 if len(bookings_schema.dump(lookup)) else 0
+    data = len(bookings_schema.dump(lookup)) if len(bookings_schema.dump(lookup)) else 0
     return jsonify({"infront": data})
 
 
@@ -414,7 +411,7 @@ def sync_bookings():
     ticket = data["ticket"]
     key_ = data["key_"]
     is_active = True if data['active'] == "True" else False
-    print("booking exist",booking_exists(branch_id, service_name, ticket))
+    # print("booking exist",booking_exists(branch_id, service_name, ticket))
     if not booking_exists(branch_id, service_name, ticket):
         final = dict()
         try:
@@ -469,7 +466,7 @@ def update_tickets_():
     # get branch by key
     key = request.json["key"]
     service_name = request.json["service_name"]
-    branch_id= request.json["branch_id"]
+    # branch_id = request.json["branch_id"]
     ticket = request.json["ticket"]
     branch_data = get_online_by_key(key)
     final = dict()
@@ -486,10 +483,12 @@ def update_tickets_():
 
     return final
 
+
 def get_online_by_key(key):
     lookup = Branch.query.filter_by(key_=key).first()
     lookup_data = branch_schema.dump(lookup)
     return lookup_data
+
 
 def services_exist(services, branch_id):
     holder = services.split(",")
@@ -530,7 +529,6 @@ def add_teller(teller_number, branch_id, service_name):
 
 
 def create_service(name, teller, branch_id, code, icon_id):
-    print("branch  exists", branch_exist(branch_id))
     if branch_exist(branch_id):
         final = None
         if service_exists(name, branch_id):
@@ -654,7 +652,6 @@ def update_branch_offline(key):
 
 def create_booking_online_(service_name, start, branch_id_, is_instant=False, user=0, kind=0, key=""):
     data_ = update_branch_offline(key)
-    print("key data >>>",data_)
     branch_id = data_["id"] if data_ else 1
     if branch_is_medical(branch_id):
         if service_exists(service_name, branch_id):
@@ -693,7 +690,7 @@ def create_booking_online_(service_name, start, branch_id_, is_instant=False, us
         else:
             final = None
 
-    print("the final output of the fuction >>>>",final)
+    # print("the final output of the fuction >>>>",final)
     return final
 
 
@@ -841,7 +838,6 @@ def connect():
 
 @sio.event
 def teller(data):
-    print('message received with ', data)
     sio.emit('teller', {'response': 'my response'})
 
 
@@ -852,7 +848,6 @@ def disconnect():
 
 @sio.on('online_data_')
 def online_data(data):
-    print("data >>>>",data)
     data = data["booking_data"]
     is_instant = data["is_instant"]
     service_name = data["service_name"]
@@ -891,7 +886,6 @@ def sync_service(data):
 
 @sio.on("update_ticket_data")
 def update_ticket_data(data):
-    print("update ticket data >>>",data)
     requests.post(f"{link}/update/ticket", json=data)
 
 # add_teller_data
@@ -926,7 +920,7 @@ except socketio.exceptions.ConnectionError:
 print("my sid", sio.sid)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=4000)
-    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    # app.run(host="0.0.0.0", debug=True, port=4000)
+    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
 
 

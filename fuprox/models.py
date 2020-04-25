@@ -50,7 +50,7 @@ class Branch(db.Model):
     latitude = db.Column(db.String(length=50))
     opens = db.Column(db.String(length=50))
     closes = db.Column(db.String(length=50))
-    service = db.Column(db.Integer,db.ForeignKey("service.id"))
+    service = db.Column(db.String(length=100), db.ForeignKey("service.name"))
     description = db.Column(db.String(length=50))
     key_ = db.Column(db.Text)
     valid_till = db.Column(db.DateTime)
