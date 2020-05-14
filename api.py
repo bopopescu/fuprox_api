@@ -414,20 +414,21 @@ def ahead_of_you_id():
 
 @app.route("/sycn/online/booking", methods=["POST"])
 def sync_bookings():
-    data = request.json["data"]
-    service_name = data["service_name"]
-    start = data["start"]
-    branch_id = data["branch_id"]
-    is_instant = data["instant"]
-    user = data["user"]
-    ticket = data["ticket"]
-    key_ = data["key_"]
-    is_active = True if data['active'] == "True" else False
-    # print("booking exist",booking_exists(branch_id, service_name, ticket))
+    service_name = request.json["service_name"]
+    start = request.json["start"]
+    branch_id = request.json["branch_id"]
+    is_instant = request.json["is_instant"]
+    user = request.json["user"]
+    ticket = request.json["ticket"]
+    key_ = request.json["key_"]
+    is_active = True if request.json['active'] == "True" else False
     if not booking_exists(branch_id, service_name, ticket):
         final = dict()
         try:
-            final = create_booking_online_(service_name, start, branch_id, is_instant, user, kind=ticket, key=key_)
+            try:
+                final = create_booking_online_(service_name, start, branch_id, is_instant, user, kind=ticket, key=key_)
+            except ValueError as err :
+                print(err)
         except sqlalchemy.exc.IntegrityError:
             print("Error! Could not create booking.")
     else:
@@ -437,14 +438,6 @@ def sync_bookings():
 
 @app.route("/sycn/offline/services", methods=["POST"])
 def sync_services():
-    '''
-    {'key': 'c4901b3161fc41c7d0151803ec5314a72878904d3f1b4a2ff023de35740b741b',
-    'code': 'SD', 'date_added': '2020-04-13T22:39:39', 'icon': '4', 'id': 35, 'teller': '',
-     'branch_id': 6, 'name': 'Said'}
-
-    :return:
-    '''
-
     name = request.json["name"]
     teller = request.json["teller"]
     branch_id = request.json["branch_id"]
@@ -455,6 +448,8 @@ def sync_services():
         key_data = get_online_by_key(key)
         if key_data:
             service = create_service(name, teller, key_data["id"], code, icon_id)
+        else:
+            service = dict()
     except sqlalchemy.exc.IntegrityError:
         print("Error! Could not create service.")
     return service_schema.jsonify(service)
@@ -462,10 +457,9 @@ def sync_services():
 
 @app.route('/sycn/offline/teller', methods=["POST"])
 def sycn_teller():
-    data = request.json["data"]
-    service = data["service"]
-    branch = data["branch"]
-    number = data["number"]
+    service = request.json["service"]
+    branch = request.json["branch"]
+    number = request.json["number"]
     teller = dict()
     try:
         teller = add_teller(number, branch, service)
@@ -540,6 +534,71 @@ def add_teller(teller_number, branch_id, service_name):
             final = {"msg": "branch/service name error. Make sure service name and branch name exists. single"}, 500
 
     return final
+
+
+"""
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:::::sync offline booking | service >> online data for offline updating:::
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+"""
+def get_branch_by_key(key):
+    lookup = Branch.query.filter_by(key_=key).first()
+    return branch_schema.dump(lookup)
+
+
+def sync_service(key):
+    branch_data = get_branch_by_key(key)
+    final = dict()
+    if branch_data:
+        # get last 20 bookings
+        bookings_lookup = Booking.query.order_by(Booking.date_added).filter_by(branch_id=branch_data[
+            "id"]).filter(Booking.user.between(0,1000000000000000)).limit(
+            50).all()
+        booking_data = bookings_schema.dump(bookings_lookup)
+        final_booking_data = list()
+        if booking_data:
+            for booking in booking_data:
+                final = dict()
+                branch_key_data = {"key": key}
+                final.update(booking)
+                final.update(branch_key_data)
+                final_booking_data.append(final)
+        # get service
+        service_lookup = Service.query.limit(20).all()
+        service_data = services_schema.dump(service_lookup)
+
+        #branch _data ____>
+        branches = sycn_branch_data(key)
+        companies = sync_company_data()
+        # branch_data font the company
+        final = {"bookings": final_booking_data, "services": service_data, "branches" : branches , "companies" :
+            companies}
+    # emit event
+    return final
+
+
+
+# getting branch data
+def sync_company_data():
+    company_lookup = Company.query.all()
+    company_data = companies_schema.dump(company_lookup)
+    return company_data
+
+def sycn_branch_data(key):
+    # get all the branch`
+    branch = get_branch_by_key(key)
+    # get the company for the branch
+    final = list()
+    if branch:
+        company = Company.query.filter_by(name=branch["company"]).first()
+        company_data = company_schema.dump(company)
+        if company_data:
+            branches_lookup = Branch.query.filter_by(company=company_data["name"]).all()
+            branches_data = branches_schema.dump(branches_lookup)
+            final = branches_data
+    # get all the branches for that company
+    return final
+
 
 
 def create_service(name, teller, branch_id, code, icon_id):
@@ -619,7 +678,6 @@ def ticket_queue(service_name, branch_id):
 
 
 def create_booking(service_name, start, branch_id, is_instant, user_id):
-    print(service_name, branch_id)
     if service_exists(service_name, branch_id):
         if is_user(user_id):
             final = ""
@@ -683,7 +741,8 @@ def create_booking_online_(service_name, start, branch_id_, is_instant=False, us
                 final = make_booking(name, start, branch_id, next_ticket, active=False, instant=False, user=user,
                                      kind=kind)
         else:
-            final = None
+            raise ValueError("Service Does Not Exist. Please Add Service First.")
+            final = True
     else:
         if service_exists(service_name, branch_id):
             # get the service
@@ -701,9 +760,10 @@ def create_booking_online_(service_name, start, branch_id_, is_instant=False, us
                 final = make_booking(name, start, branch_id, next_ticket, active=False, instant=is_instant, user=user,
                                      kind=kind)
         else:
-            final = None
+            raise ValueError("Service Does Not Exist. Please Add Service First.")
+            final = True
 
-    # print("the final output of the fuction >>>>",final)
+    print("the final output of the fuction >>>>",final)
     return final
 
 
@@ -840,7 +900,7 @@ def get_service_code(code, branch_id):
     return data
 
 
-'''here we are going to reser tickets every midnight'''
+'''here we are going to reset tickets every midnight'''
 
 
 @sio.event
@@ -857,41 +917,42 @@ def teller(data):
 def disconnect():
     print('disconnected from server')
 
-
+'''
+# is_instant = data["is_instant"]
+    # service_name = data["service_name"]
+    # user = data["user"]
+    # active = data["active"]
+    # ticket = data["ticket"]
+    # start = data["start"]
+    # id = data["id"]
+    # kind = data["kind"]
+    # serviced = data["serviced"]
+    # branch_id = data["branch_id"]
+    # key_ = data["key_"]
+    # final = {
+    #     "data": {
+    #         "instant": is_instant,
+    #         "service_name": service_name,
+    #         "user": user,
+    #         "active": active,
+    #         "ticket": ticket,
+    #         "start": start,
+    #         "id": id,
+    #         "kind": kind,
+    #         "serviced": serviced,
+    #         "branch_id": branch_id,
+    #         "key_": key_
+    #     }
+    # }
+'''
 @sio.on('online_data_')
 def online_data(data):
     data = data["booking_data"]
-    is_instant = data["is_instant"]
-    service_name = data["service_name"]
-    user = data["user"]
-    active = data["active"]
-    ticket = data["ticket"]
-    start = data["start"]
-    id = data["id"]
-    kind = data["kind"]
-    serviced = data["serviced"]
-    branch_id = data["branch_id"]
-    key_ = data["key_"]
-    final = {
-        "data": {
-            "instant": is_instant,
-            "service_name": service_name,
-            "user": user,
-            "active": active,
-            "ticket": ticket,
-            "start": start,
-            "id": id,
-            "kind": kind,
-            "serviced": serviced,
-            "branch_id": branch_id,
-            "key_": key_
-        }
-    }
-    requests.post(f"{link}/sycn/online/booking", json=final)
+    requests.post(f"{link}/sycn/online/booking", json=data)
 
 
 @sio.on('sync_service_')
-def sync_service(data):
+def sync_service_(data):
     requests.post(f"{link}/sycn/offline/services", json=data)
 
 
@@ -900,59 +961,58 @@ def update_ticket_data(data):
     requests.post(f"{link}/update/ticket", json=data)
 
 
-# syncig all offline data
-@sio.on("all_sync_data")
+"""
+::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+syncing all offline data
+"""
+
+
+@sio.on("all_sync_offline_data")
 def sync_offline_data(data):
     # get each data category loop each of the list while posting on a timer to the
     # appropriate end point
     if data:
         parsed_data = dict(data)
+
         if parsed_data:
-            if data["bookings"]:
-                # deal with bookings
-                for booking in data["bookings"]:
-                    requests.post(f"{link}/sycn/online/booking", json=booking)
-                    time.sleep(0.2)
-            elif data["services"]:
+            if parsed_data["services"]:
                 # deal with services offered
-                for service in data["services"]:
+                for service in parsed_data["services"]:
                     requests.post(f"{link}/sycn/offline/services", json=service)
-                    time.sleep(0.2)
-            elif data["tellers"]:
-                for teller_ in data["tellers"]:
+                    time.sleep(0.1)
+
+            if parsed_data["tellers"]:
+                for teller_ in parsed_data["tellers"]:
                     requests.post(f"{link}/sycn/offline/teller", json=teller_)
-                    time.sleep(0.2)
+                    time.sleep(0.1)
+
+            if parsed_data["bookings"]:
+                # deal with bookings
+                for booking in parsed_data["bookings"]:
+                    requests.post(f"{link}/sycn/online/booking", json=booking)
+                    time.sleep(0.1)
+
+            # this key here  will trigger the data for a specific branch to be
+            # fetched and pushed down the backend module.
+            # # in the backed we should check to make sure only certain branch data is copied to itself
+            if parsed_data["key"]:
+                # send online data back to the desktop app
+                sio.emit("all_sync_online", sync_service(parsed_data["key"]))
+
+            # emit data to some a function
 
 
 @sio.on("add_teller_data")
 def add_teller_data(data):
     data = data["teller_data"]
-    service = data["service"]
-    branch = data['branch']
-    number = data["number"]
-    id = data["id"]
-    date_added = data["date_added"]
-
-    final = {
-        "data": {
-            "service": service,
-            "branch": branch,
-            "number": number,
-            "id": id,
-            "date_added": date_added,
-        }
-    }
-    requests.post(f"{link}/sycn/offline/teller", json=final)
+    requests.post(f"{link}/sycn/offline/teller", json=data)
 
 
 try:
     sio.connect("http://localhost:5000/")
-    # sio.connect("http://sockets.fuprox.com/")
 except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
-# --
-print("my sid", sio.sid)
 
 if __name__ == "__main__":
-    # app.run(host="0.0.0.0", debug=True, port=4000)
-    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    app.run(host="0.0.0.0", debug=True, port=4000)
+    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
