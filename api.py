@@ -138,17 +138,33 @@ def get_all_branches():
 @app.route("/branch/get/single", methods=["GET", "POST"])
 def get_user_branches():
     branch_id = request.json["branch_id"]
+    return jsonify(branch_get_single(branch_id))
+
+
+def branch_get_single(branch_id):
     # make a database selection
     data = Branch.query.filter_by(id=branch_id).first()
     res = branch_schema.dump(data)
     final = bool()
+    company_ = ""
+    # get company_data
+    if data:
+        company = get_company_by_branch(res["company"])
+        if company:
+            company_ = company["id"]
     if res:
         if branch_is_medical(res["id"]):
             final = True
         else:
             final = False
     res["is_medical"] = final
-    return jsonify(res)
+    res["company"] = company_
+    return res
+
+def get_company_by_branch(branch_name):
+    lookup = Company.query.filter_by(name=branch_name).first()
+    company_data = company_schema.dump(lookup)
+    return company_data
 
 
 @app.route("/branch/add", methods=["POST"])
@@ -260,12 +276,7 @@ def get_user_bookings_():
     if user_id:
         # make a database selection
         data = Booking.query.filter_by(user=user_id).all()
-        res = bookings_schema.dump(data)
-        final = list()
-        for item in res:
-            service = "0" if item["serviced"] else "1"
-            item["serviced"] = service
-            final.append(item)
+        final = bookings_schema.dump(data)
     else:
         final = None
 
