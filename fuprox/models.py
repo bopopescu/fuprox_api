@@ -2,25 +2,27 @@ from fuprox import db, ma
 from datetime import datetime
 
 
+
 # user DB model
 class Customer(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(48), unique=True, nullable=False)
+    phoneNumber = db.Column(db.String(12), unique=True, nullable=False)
     image_file = db.Column(db.String(200), nullable=False, default="default.jpg")
-    password = db.Column(db.String(200),nullable=False)
+    password = db.Column(db.String(200), nullable=False)
 
     def __repr__(self):
         return f"User (' {self.id} '{self.email}' )"
 
-    def __init__(self, email,password):
+    def __init__(self, email, password,phone_number):
         self.email = email
         self.password = password
+        self.phoneNumber = phone_number
 
 
 class CustomerSchema(ma.Schema):
     class Meta:
-        fields = ("id", "email","password")
-
+        fields = ("id", "email", "phoneNumber", "password")
 
 # creating a company class
 class Company(db.Model):
@@ -35,11 +37,9 @@ class Company(db.Model):
     def __repr__(self):
         return f"Company {self.name} -> {self.service}"
 
-
 class CompanySchema(ma.Schema):
     class Meta:
         fields = ("id","name","service")
-
 
 # creating a branch class
 class Branch(db.Model):
@@ -195,7 +195,7 @@ class Booking(db.Model):
 class BookingSchema(ma.Schema):
     class Meta:
         fields = ("id", "service_name", "start", "branch_id", "ticket", "active", "next", "serviced","teller",\
-                  "kind","user","is_instant")
+                  "kind","user","is_instant","date_added")
 
 
 class Teller(db.Model):
@@ -214,4 +214,23 @@ class Teller(db.Model):
 class TellerSchema(ma.Schema):
     class Meta:
         fields = ("id", "number", "date_added", "branch", "service")
+
+
+
+# paymnets schema
+
+
+class Payments(db.Model):
+    id = db.Column(db.Integer, primary_key=True, nullable=False)
+    body = db.Column(db.Text, nullable=False)
+
+    def __init__(self, body):
+        self.body = body
+
+
+class PaymentSchema(ma.Schema):
+    class Meta:
+        fields = ("id", "message")
+
+
 

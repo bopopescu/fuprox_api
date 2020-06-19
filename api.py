@@ -5,6 +5,7 @@ from fuprox import db, app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
 , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
                            Booking, BookingSchema, TellerSchema, Teller)
+from fuprox.payments import authenitcate,stk_push
 import secrets
 from fuprox import bcrypt
 
@@ -20,6 +21,8 @@ import socketio
 import requests
 import time
 import eventlet.wsgi
+from datetime import datetime,timedelta
+
 
 link = "http://localhost:4000"
 # standard Python
@@ -66,6 +69,37 @@ service_offers_schema = ServiceOfferedSchema(many=True)
 teller_schema = TellerSchema()
 tellers_schema = TellerSchema(many=True)
 
+# :::::::::::::::: Routes for graphs for the fuprox_no_queu_backend ::::
+@app.route("/graph/data/doughnut",methods=["POST"])
+def graph_data():
+    # get all booking sorting by
+    serviced_lookup = Booking.query.with_entities(Booking.date_added).filter_by(serviced=True).all()
+    serviced_data = bookings_schema.dump(serviced_lookup)
+
+    unserviced_lookup = Booking.query.with_entities(Booking.date_added).filter_by(serviced=False).all()
+    unserviced_data = bookings_schema.dump(unserviced_lookup)
+    print(unserviced_data)
+
+    final = {
+        "serviced" : len(serviced_data),
+        "unserviced" : len(unserviced_data)
+    }
+    return final
+
+
+@app.route('/graph/data/timeline',methods=["POST"])
+def timeline():
+    now = datetime.now()
+    offset = timedelta.days(-15)
+    # the offset for new date
+    limit_date = (now + offset)
+    date_lookup = Booking.query("date_added").filter(Booking.date_added.between(limit_date,now)).all()
+    #  sort data using pandas
+    date_data = bookings_schema.dump(date_lookup)
+    return date_data
+
+# :::: end
+
 
 @app.route("/user/login", methods=["POST"])
 def get_user():
@@ -87,13 +121,15 @@ def get_user():
 def adduser():
     email = request.json["email"]
     password = request.json["password"]
+    dummy_phone = secrets.token_hex(8)
+
     # get user data
     lookup = Customer.query.filter_by(email=email).first()
     user_data = user_schema.dump(lookup)
     if not user_data:
         # hashing the password
         hashed_password = bcrypt.generate_password_hash(password)
-        user = Customer(email, hashed_password)
+        user = Customer(email, hashed_password,dummy_phone)
         db.session.add(user)
         db.session.commit()
         data = user_schema.dump(user)
@@ -245,6 +281,22 @@ def make_book():
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
+    if (is_instant):
+        # we are going to request pay
+
+        token_data = authenitcate()
+        token = json.loads(token_data)["access_token"]
+        business_shortcode = "174379"
+        lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+        amount = 10
+        party_b = business_shortcode
+        callback_url = "http://7d1fbd9b.ngrok.io/mpesa/b2c/v1"
+
+        response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+                            callback_url)
+    else:
+        pay = 0
+
     booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
     print("booking", booking)
     if booking:
@@ -262,7 +314,7 @@ def get_all_bookings():
         res = get_user_bookings(user_id)
         tickets = list()
         for booking in res:
-            tickets.append(generate_ticket(booking["id"]))
+            tickets.append(generate_tickets(booking["id"]))
         res = tickets
     else:
         res = {"msg": "user does not exist"}, 500
@@ -418,7 +470,7 @@ def ahead_of_you():
 
 
 @app.route("/ahead/of/you/id", methods=["POST"])
-def ahead_of_you_id():
+def ahead_of_you_id_():
     branch_id = request.json["booking_id"]
     return jsonify(ahead_of_you_id(branch_id))
 
@@ -502,6 +554,50 @@ def update_tickets_():
 
     return final
 
+
+
+
+
+@app.route("/service/pay", methods=["POST"])
+def payments():
+    phonenumber = request.json["phone"]
+    token_data = authenitcate()
+    token = json.loads(token_data)["access_token"]
+    business_shortcode = "174379"
+    lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+    amount = 10
+    party_b = business_shortcode
+    callback_url = "http://7d1fbd9b.ngrok.io/mpesa/b2c/v1"
+
+    response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+                        callback_url)
+    if response:
+        final = {"msg": "Success. Request pushed to customer"}
+    else:
+        final = {"msg": None}
+    return jsonify(final)
+
+
+@app.route("/payments/status", methods=["POST"])
+def payment_res():
+    data = request.json["payment_info"]
+    lookup = Payments(data)
+    db.session.add(lookup)
+    db.session.commit()
+    return payment_schema.jsonify(lookup)
+
+
+@app.route("/payments/user/status", methods=["POST"])
+def payment_user_status():
+    data = request.json["phone"]
+    lookup = Payments(data)
+    db.session.add(lookup)
+    db.session.commit()
+    return payment_schema.jsonify(lookup)
+
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+# functions >>>>>>>>>>>>>>>>>>>>>>>>
+# >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 def get_online_by_key(key):
     lookup = Branch.query.filter_by(key_=key).first()
