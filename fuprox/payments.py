@@ -7,7 +7,7 @@ consumer_key = "vK3FkmwDOHAcX8UPt1Ek0njU9iE5plHG"
 consumer_secret = "vqB3jnDyqP1umewH"
 
 
-def authenitcate():
+def authenticate():
     """
     :return: MPESA_TOKEN
     """

@@ -5,7 +5,7 @@ from fuprox import db, app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
 , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
                            Booking, BookingSchema, TellerSchema, Teller)
-from fuprox.payments import authenitcate,stk_push
+from fuprox.payments import authenticate,stk_push
 import secrets
 from fuprox import bcrypt
 
@@ -22,6 +22,7 @@ import requests
 import time
 import eventlet.wsgi
 from datetime import datetime,timedelta
+import json
 
 
 link = "http://localhost:4000"
@@ -131,7 +132,10 @@ def adduser():
         hashed_password = bcrypt.generate_password_hash(password)
         user = Customer(email, hashed_password,dummy_phone)
         db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except sqlalchemy.exc.DataError as e:
+            print(f"Error: {e}")
         data = user_schema.dump(user)
         if data:
             sio.emit("sync_online_user", {"user_data": data})
@@ -276,26 +280,34 @@ def get_book():
 @app.route("/book/make", methods=["POST"])
 def make_book():
     service_name = request.json["service_name"]
-    # start = datetime.now()
     start = request.json["start"]
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
+    phonenumber = request.json["phonenumber"]
     if (is_instant):
         # we are going to request pay
-
-        token_data = authenitcate()
+        token_data = authenticate()
         token = json.loads(token_data)["access_token"]
         business_shortcode = "174379"
         lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         amount = 10
         party_b = business_shortcode
-        callback_url = "http://7d1fbd9b.ngrok.io/mpesa/b2c/v1"
-
+        callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
         response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                             callback_url)
     else:
-        pay = 0
+        # we are going to request pay
+        token_data = authenticate()
+        token = json.loads(token_data)["access_token"]
+        business_shortcode = "174379"
+        lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+        amount = 5
+        party_b = business_shortcode
+        callback_url = "http://876f867d0178.ngrok.io/mpesa/b2c/v1"
+
+        response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+                            callback_url)
 
     booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
     print("booking", booking)
@@ -561,7 +573,7 @@ def update_tickets_():
 @app.route("/service/pay", methods=["POST"])
 def payments():
     phonenumber = request.json["phone"]
-    token_data = authenitcate()
+    token_data = authenticate()
     token = json.loads(token_data)["access_token"]
     business_shortcode = "174379"
     lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
@@ -1121,5 +1133,5 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=4000)
-    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    # app.run(host="0.0.0.0", debug=True, port=4000)
+    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
