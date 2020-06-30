@@ -591,8 +591,7 @@ def payments():
     lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
     amount = 10
     party_b = business_shortcode
-    callback_url = "http://7d1fbd9b.ngrok.io/mpesa/b2c/v1"
-
+    callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
     response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                         callback_url)
     if response:
