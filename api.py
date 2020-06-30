@@ -4,7 +4,7 @@ from flask import request, jsonify
 from fuprox import db, app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
 , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
-                           Booking, BookingSchema, TellerSchema, Teller)
+                           Booking, BookingSchema, TellerSchema, Teller,Payments,PaymentSchema)
 from fuprox.payments import authenticate,stk_push
 import secrets
 from fuprox import bcrypt
@@ -69,6 +69,11 @@ service_offers_schema = ServiceOfferedSchema(many=True)
 # teller schema
 teller_schema = TellerSchema()
 tellers_schema = TellerSchema(many=True)
+
+# payment  schema
+payment_schema = PaymentSchema()
+payments_schema = PaymentSchema(many=True)
+
 
 # :::::::::::::::: Routes for graphs for the fuprox_no_queu_backend ::::
 @app.route("/graph/data/doughnut",methods=["POST"])
@@ -309,15 +314,25 @@ def make_book():
         response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                             callback_url)
 
-    booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-    print("booking", booking)
-    if booking:
-        final = generate_ticket(booking["id"])
-        sio.emit("online", {"booking_data": booking})
-    else:
-        final = {"msg": "Error generating the ticket. Please Try again later."}
+
+        # booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
+        # print("booking", booking)
+        # if booking:
+        #     final = generate_ticket(booking["id"])
+        #     sio.emit("online", {"booking_data": booking})
+        # else:
+        #     final = {"msg": "Error generating the ticket. Please Try again later."}
     return jsonify(final)
 
+
+# dealing with payment status
+@app.route("/payment/status", methods=["POST"])
+def payment_res():
+    data = request.json["payment_info"]
+    lookup = Payments(data)
+    db.session.add(lookup)
+    db.session.commit()
+    return payment_schema.jsonify(lookup)
 
 @app.route("/book/get/all", methods=["GET", "POST"])
 def get_all_bookings():
@@ -565,9 +580,6 @@ def update_tickets_():
             final = booking_schema.dump(booking_lookup)
 
     return final
-
-
-
 
 
 @app.route("/service/pay", methods=["POST"])

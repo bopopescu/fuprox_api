@@ -219,7 +219,6 @@ class TellerSchema(ma.Schema):
 
 # paymnets schema
 
-
 class Payments(db.Model):
     id = db.Column(db.Integer, primary_key=True, nullable=False)
     body = db.Column(db.Text, nullable=False)
@@ -231,6 +230,4 @@ class Payments(db.Model):
 class PaymentSchema(ma.Schema):
     class Meta:
         fields = ("id", "message")
-
-
 
