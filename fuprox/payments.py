@@ -2,6 +2,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 from base64 import b64encode
 from datetime import datetime
+import logging
 
 consumer_key = "vK3FkmwDOHAcX8UPt1Ek0njU9iE5plHG"
 consumer_secret = "vqB3jnDyqP1umewH"
@@ -36,4 +37,5 @@ def stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_a, p
         "TransactionDesc": "test"
     }
     response = requests.post(api_url, json=req, headers=headers)
+    logging.info("response",response)
     return response
