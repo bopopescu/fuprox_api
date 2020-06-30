@@ -301,6 +301,14 @@ def make_book():
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
         response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                             callback_url)
+        booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
+        print("booking", booking)
+        if booking:
+            final = generate_ticket(booking["id"])
+            sio.emit("online", {"booking_data": booking})
+        else:
+            final = {"msg": "Error generating the ticket. Please Try again later."}
+
     else:
         # we are going to request pay
         token_data = authenticate()
