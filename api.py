@@ -602,15 +602,6 @@ def payments():
     return jsonify(final)
 
 
-@app.route("/payments/status", methods=["POST"])
-def payment_res():
-    data = request.json["payment_info"]
-    lookup = Payments(data)
-    db.session.add(lookup)
-    db.session.commit()
-    return payment_schema.jsonify(lookup)
-
-
 @app.route("/payments/user/status", methods=["POST"])
 def payment_user_status():
     data = request.json["phone"]
