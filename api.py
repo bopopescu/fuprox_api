@@ -1,11 +1,16 @@
 # from logging import exception
-
+import asyncio
+import time
+import json
+import requests
+from asgiref.sync import sync_to_async
 from flask import request, jsonify
 from fuprox import db, app
 from fuprox.models import (Customer, Branch, CustomerSchema, BranchSchema, Service, ServiceSchema
 , Company, CompanySchema, Help, HelpSchema, ServiceOffered, ServiceOfferedSchema,
-                           Booking, BookingSchema, TellerSchema, Teller,Payments,PaymentSchema)
-from fuprox.payments import authenticate,stk_push
+                           Booking, BookingSchema, TellerSchema, Teller, Payments, PaymentSchema,
+                           Mpesa, MpesaSchema)
+from fuprox.payments import authenticate, stk_push
 import secrets
 from fuprox import bcrypt
 
@@ -21,9 +26,8 @@ import socketio
 import requests
 import time
 import eventlet.wsgi
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta
 import json
-
 
 link = "http://localhost:4000"
 # standard Python
@@ -74,9 +78,14 @@ tellers_schema = TellerSchema(many=True)
 payment_schema = PaymentSchema()
 payments_schema = PaymentSchema(many=True)
 
+# mpesa_schema
+mpesa_schema = MpesaSchema()
+mpesas_schema = MpesaSchema(many=True)
+
 
 # :::::::::::::::: Routes for graphs for the fuprox_no_queu_backend ::::
-@app.route("/graph/data/doughnut",methods=["POST"])
+
+@app.route("/graph/data/doughnut", methods=["POST"])
 def graph_data():
     # get all booking sorting by
     serviced_lookup = Booking.query.with_entities(Booking.date_added).filter_by(serviced=True).all()
@@ -87,22 +96,23 @@ def graph_data():
     print(unserviced_data)
 
     final = {
-        "serviced" : len(serviced_data),
-        "unserviced" : len(unserviced_data)
+        "serviced": len(serviced_data),
+        "unserviced": len(unserviced_data)
     }
     return final
 
 
-@app.route('/graph/data/timeline',methods=["POST"])
+@app.route('/graph/data/timeline', methods=["POST"])
 def timeline():
     now = datetime.now()
     offset = timedelta.days(-15)
     # the offset for new date
     limit_date = (now + offset)
-    date_lookup = Booking.query("date_added").filter(Booking.date_added.between(limit_date,now)).all()
+    date_lookup = Booking.query("date_added").filter(Booking.date_added.between(limit_date, now)).all()
     #  sort data using pandas
     date_data = bookings_schema.dump(date_lookup)
     return date_data
+
 
 # :::: end
 
@@ -135,7 +145,7 @@ def adduser():
     if not user_data:
         # hashing the password
         hashed_password = bcrypt.generate_password_hash(password)
-        user = Customer(email, hashed_password,dummy_phone)
+        user = Customer(email, hashed_password, dummy_phone)
         db.session.add(user)
         try:
             db.session.commit()
@@ -205,6 +215,7 @@ def branch_get_single(branch_id):
     res["is_medical"] = final
     res["company"] = company_
     return res
+
 
 def get_company_by_branch(branch_name):
     lookup = Company.query.filter_by(name=branch_name).first()
@@ -282,6 +293,9 @@ def get_book():
     return jsonify({"booking_data": res})
 
 
+mpesa_transaction_key = secrets.token_hex(2)
+
+
 @app.route("/book/make", methods=["POST"])
 def make_book():
     service_name = request.json["service_name"]
@@ -308,7 +322,6 @@ def make_book():
             sio.emit("online", {"booking_data": booking})
         else:
             final = {"msg": "Error generating the ticket. Please Try again later."}
-
     else:
         # we are going to request pay
         token_data = authenticate()
@@ -319,26 +332,107 @@ def make_book():
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
-        response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
-                            callback_url)
-        booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-        print("booking", booking)
-        if booking:
-            final = generate_ticket(booking["id"])
-            sio.emit("online", {"booking_data": booking})
+        # update the local transactional_KEY
+        mpesa_transaction_key = secrets.token_hex(10)
+
+        stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+                 callback_url)
+        # token will be used to check if transcation is successful
+    return jsonify({"token": mpesa_transaction_key})
+
+
+@app.route("/verify/payment", methods=["POST"])
+def make_book_():
+    token = request.json["token"]
+    service_name = request.json["service_name"]
+    start = request.json["start"]
+    branch_id = request.json["branch_id"]
+    user_id = request.json["user_id"]
+    is_instant = True if request.json["is_instant"] else False
+
+    if verify_payment(token):
+        final = make_booking(service_name, start, branch_id, is_instant, user_id)
+    else:
+        final = "error"
+
+    return jsonify({"msg":final})
+
+
+def make_booking(service_name, start, branch_id, is_instant, user_id):
+    booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
+    if booking:
+        final = generate_ticket(booking["id"])
+        sio.emit("online", {"booking_data": booking})
+    else:
+        final = {"msg": "Error generating the ticket. Please Try again later."}
+    return final
+
+
+def get_payment(token):
+    lookup = Mpesa.query.filter_by(local_transactional_key=token).first()
+    data = mpesa_schema.dump(lookup)
+    return data
+
+
+def verify_payment(token):
+    data = get_payment(token)
+    if data:
+        result_code = data["result_code"]
+        if int(result_code) == 0:
+            # succesful payment
+            final = {"msg": True}
         else:
-            final = {"msg": "Error generating the ticket. Please Try again later."}
-    return jsonify(final)
+            # error with payment
+            final = {"msg": False}
+    else:
+        final = {"msg": False}
+    return final
 
 
 # dealing with payment status
 @app.route("/payment/status", methods=["POST"])
 def payment_res():
     data = request.json["payment_info"]
-    lookup = Payments(data)
-    db.session.add(lookup)
+    parsed = json.loads(data)
+    # here we are going to add the new Mpesa Models
+    # common details
+    parent = parsed["Body"]["stkCallback"]
+    merchant_request_id = parent["MerchantRequestID"]
+    checkout_request_id = parent["CheckoutRequestID"]
+    result_code = parent["ResultCode"]
+    result_desc = parent["ResultDesc"]
+    lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
+
+    # setting a unique for the database
+    lookup.local_transactional_key = mpesa_transaction_key
+    lookup.merchant_request_id = merchant_request_id
+    lookup.checkout_request_id = checkout_request_id
+    lookup.result_code = result_code
+    lookup.result_desc = result_desc
+
+    # success details
+    if int(request_code) == 0:
+        # we are going to get the callbackmetadata
+        callback_meta = parent["CallbackMetadata"]
+        amount = callback_meta[0]["Amount"]
+        receipt_number = callback_meta[1]["MpesaReceiptNumber"]
+        transaction_date = callback_meta[2]["TransactionDate"]
+        phone_number = callback_meta[3]["PhoneNumber"]
+
+        # we are also going to add the rest of the data before commit
+        lookup.amount = amount
+        lookup.receipt_number = receipt_number
+        lookup.transaction_date = transaction_date
+        lookup.phone_number = phone_number
+        db.session.add(lookup)
+    else:
+        # here we are  just going to commit
+        db.session.add(lookup)
     db.session.commit()
-    return payment_schema.jsonify(lookup)
+    # add give data back ot the user
+    final = mpesa_schema.jsonify(lookup)
+    return final
+
 
 @app.route("/book/get/all", methods=["GET", "POST"])
 def get_all_bookings():
@@ -470,6 +564,7 @@ def search_app():
         else:
             final = False
         med = {"is_medical": final}
+
         # getting company data from branchname
         branch = Company.query.filter_by(name=item["company"]).first()
         data = branch_schema.dump(branch)
@@ -523,7 +618,7 @@ def sync_bookings():
         try:
             try:
                 final = create_booking_online_(service_name, start, branch_id, is_instant, user, kind=ticket, key=key_)
-            except ValueError as err :
+            except ValueError as err:
                 print(err)
         except sqlalchemy.exc.IntegrityError:
             print("Error! Could not create booking.")
@@ -588,7 +683,6 @@ def update_tickets_():
     return final
 
 
-
 # extra payment - methods
 @app.route("/service/pay", methods=["POST"])
 def payments():
@@ -614,9 +708,11 @@ def payments():
 def payment_user_status():
     data = request.json["phone"]
     lookup = Payments(data)
+    # we are going to work with new mpsay payments
     db.session.add(lookup)
     db.session.commit()
     return payment_schema.jsonify(lookup)
+
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 # functions >>>>>>>>>>>>>>>>>>>>>>>>
@@ -671,6 +767,8 @@ def add_teller(teller_number, branch_id, service_name):
 :::::sync offline booking | service >> online data for offline updating:::
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 """
+
+
 def get_branch_by_key(key):
     lookup = Branch.query.filter_by(key_=key).first()
     return branch_schema.dump(lookup)
@@ -682,7 +780,7 @@ def sync_service(key):
     if branch_data:
         # get last 20 bookings
         bookings_lookup = Booking.query.order_by(Booking.date_added).filter_by(branch_id=branch_data[
-            "id"]).filter(Booking.user.between(0,1000000000000000)).limit(
+            "id"]).filter(Booking.user.between(0, 1000000000000000)).limit(
             50).all()
         booking_data = bookings_schema.dump(bookings_lookup)
         final_booking_data = list()
@@ -697,15 +795,14 @@ def sync_service(key):
         service_lookup = Service.query.limit(20).all()
         service_data = services_schema.dump(service_lookup)
 
-        #branch _data ____>
+        # branch _data ____>
         branches = sycn_branch_data(key)
         companies = sync_company_data()
         # branch_data font the company
-        final = {"bookings": final_booking_data, "services": service_data, "branches" : branches , "companies" :
+        final = {"bookings": final_booking_data, "services": service_data, "branches": branches, "companies":
             companies}
     # emit event
     return final
-
 
 
 # getting branch data
@@ -713,6 +810,7 @@ def sync_company_data():
     company_lookup = Company.query.all()
     company_data = companies_schema.dump(company_lookup)
     return company_data
+
 
 def sycn_branch_data(key):
     # get all the branch`
@@ -728,7 +826,6 @@ def sycn_branch_data(key):
             final = branches_data
     # get all the branches for that company
     return final
-
 
 
 def create_service(name, teller, branch_id, code, icon_id):
@@ -893,7 +990,7 @@ def create_booking_online_(service_name, start, branch_id_, is_instant=False, us
             raise ValueError("Service Does Not Exist. Please Add Service First.")
             final = True
 
-    print("the final output of the fuction >>>>",final)
+    print("the final output of the fuction >>>>", final)
     return final
 
 
@@ -1047,6 +1144,7 @@ def teller(data):
 def disconnect():
     print('disconnected from server')
 
+
 '''
 # is_instant = data["is_instant"]
     # service_name = data["service_name"]
@@ -1075,6 +1173,8 @@ def disconnect():
     #     }
     # }
 '''
+
+
 @sio.on('online_data_')
 def online_data(data):
     data = data["booking_data"]
