@@ -396,7 +396,9 @@ def verify_payment(token):
 @app.route("/payment/status", methods=["POST"])
 def payment_res():
     data = request.json["payment_info"]
+    print("raw data>>>",data)
     parsed = json.loads(data)
+    print("parsed_data",parsed)
     # here we are going to add the new Mpesa Models
     # common details
     parent = parsed["Body"]["stkCallback"]
