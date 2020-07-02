@@ -17,7 +17,7 @@ def authenticate():
     return r.text
 
 
-def stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_a, party_b,phonenumber,callbackurl):
+def stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_a, phonenumber,callbackurl):
     api_url = "https://sandbox.safaricom.co.ke/mpesa/stkpush/v1/processrequest"
     headers = {"Authorization": "Bearer %s" % token}
     timestamp = datetime.now().strftime("%Y%m%d%I%M%S")
@@ -30,15 +30,12 @@ def stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_a, p
         "TransactionType": "CustomerPayBillOnline",
         "Amount": amount,
         "PartyA": party_a,
-        "PartyB": party_b,
+        "PartyB": business_shortcode,
         "PhoneNumber": phonenumber,
         "CallBackURL": callbackurl,
         "AccountReference": business_shortcode,
         "TransactionDesc": "test",
     }
-    try :
-        response = requests.post(api_url, json=req, headers=headers)
-    except requests.exceptions.ConnectionError as e:
-        logging.info("Error!", e)
-    # logging.info("response",response)
+    response = requests.post(api_url, json=req, headers=headers)
+    logging.info("response",response)
     return response
