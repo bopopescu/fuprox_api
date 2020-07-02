@@ -333,6 +333,7 @@ def make_book():
         amount = 5
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
+        
 
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                  callback_url)
