@@ -84,6 +84,7 @@ mpesas_schema = MpesaSchema(many=True)
 
 
 # :::::::::::::::: Routes for graphs for the fuprox_no_queu_backend ::::
+
 @app.route("/graph/data/doughnut", methods=["POST"])
 def graph_data():
     # get all booking sorting by
@@ -303,6 +304,11 @@ def make_book():
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
     phonenumber = request.json["phonenumber"]
+
+    # update the local transactional_KEY
+    mpesa_transaction_key = secrets.token_hex(10)
+
+
     if (is_instant):
         # we are going to request pay
         token_data = authenticate()
@@ -312,8 +318,8 @@ def make_book():
         amount = 10
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
-        response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
-                            callback_url)
+        
+        response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,callback_url)
         booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
         print("booking", booking)
         if booking:
@@ -331,8 +337,7 @@ def make_book():
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
-        # update the local transactional_KEY
-        mpesa_transaction_key = secrets.token_hex(10)
+       
 
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                  callback_url)
@@ -341,7 +346,7 @@ def make_book():
 
 
 @app.route("/verify/payment", methods=["POST"])
-def make_book():
+def make_book_():
     token = request.json["token"]
     service_name = request.json["service_name"]
     start = request.json["start"]
@@ -392,8 +397,9 @@ def verify_payment(token):
 @app.route("/payment/status", methods=["POST"])
 def payment_res():
     data = request.json["payment_info"]
+    print("raw data>>>",data)
     parsed = json.loads(data)
-
+    print("parsed_data", parsed)
     # here we are going to add the new Mpesa Models
     # common details
     parent = parsed["Body"]["stkCallback"]
@@ -693,7 +699,8 @@ def payments():
     lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
     amount = 10
     party_b = business_shortcode
-    callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
+    # callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
+    callback_url = "http://8e9d62a3a4d6.ngrok.io:8080/mpesa/b2c/v1"
     response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                         callback_url)
 
@@ -1244,5 +1251,5 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    # app.run(host="0.0.0.0", debug=True, port=4000)
-    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    app.run(host="0.0.0.0", debug=True, port=9000)
+    # eventlet.wsgi.server(eventlet.listen(('', 9000)), app)
