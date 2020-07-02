@@ -341,7 +341,7 @@ def make_book():
 
 
 @app.route("/verify/payment", methods=["POST"])
-def make_book():
+def make_book_():
     token = request.json["token"]
     service_name = request.json["service_name"]
     start = request.json["start"]
