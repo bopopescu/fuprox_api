@@ -308,6 +308,7 @@ def make_book():
     # update the local transactional_KEY
     mpesa_transaction_key = secrets.token_hex(10)
 
+
     if (is_instant):
         # we are going to request pay
         token_data = authenticate()
@@ -317,15 +318,14 @@ def make_book():
         amount = 10
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
-
         response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,callback_url)
-        # booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-        # print("booking", booking)
-        # if booking:
-        #     final = generate_ticket(booking["id"])
-        #     sio.emit("online", {"booking_data": booking})
-        # else:
-        #     final = {"msg": "Error generating the ticket. Please Try again later."}
+        booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
+        print("booking", booking)
+        if booking:
+            final = generate_ticket(booking["id"])
+            sio.emit("online", {"booking_data": booking})
+        else:
+            final = {"msg": "Error generating the ticket. Please Try again later."}
     else:
         # we are going to request pay
         token_data = authenticate()
@@ -336,11 +336,10 @@ def make_book():
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
-        try:
-            stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+       
+
+        stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                  callback_url)
-        except requests.exceptions.ConnectionError as e:
-            logging.error(e)
         # token will be used to check if transcation is successful
     return jsonify({"token": mpesa_transaction_key})
 
@@ -396,48 +395,47 @@ def verify_payment(token):
 # dealing with payment status
 @app.route("/payment/status", methods=["POST"])
 def payment_res():
-    # data = request.json
-    print("raw data>>>",request.json)
-    # parsed = json.loads(data)
-    # print("parsed_data", parsed)
+    data = request.json["payment_info"]
+    print("raw data>>>",data)
+    parsed = json.loads(data)
+
     # here we are going to add the new Mpesa Models
-    # # common details
-    # parent = parsed[""]["stkCallback"]
-    # merchant_request_id = parent["MerchantRequestID"]
-    # checkout_request_id = parent["CheckoutRequestID"]
-    # result_code = parent["ResultCode"]
-    # result_desc = parent["ResultDesc"]
-    # lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
+    # common details
+    parent = parsed["Body"]["stkCallback"]
+    merchant_request_id = parent["MerchantRequestID"]
+    checkout_request_id = parent["CheckoutRequestID"]
+    result_code = parent["ResultCode"]
+    result_desc = parent["ResultDesc"]
+    lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
 
-    # # setting a unique for the database
-    # lookup.local_transactional_key = mpesa_transaction_key
-    # lookup.merchant_request_id = merchant_request_id
-    # lookup.checkout_request_id = checkout_request_id
-    # lookup.result_code = result_code
-    # lookup.result_desc = result_desc
+    # setting a unique for the database
+    lookup.local_transactional_key = mpesa_transaction_key
+    lookup.merchant_request_id = merchant_request_id
+    lookup.checkout_request_id = checkout_request_id
+    lookup.result_code = result_code
+    lookup.result_desc = result_desc
 
-    # # success details
-    # if int(request_code) == 0:
-    #     # we are going to get the callbackmetadata
-    #     callback_meta = parent["CallbackMetadata"]
-    #     amount = callback_meta[0]["Amount"]
-    #     receipt_number = callback_meta[1]["MpesaReceiptNumber"]
-    #     transaction_date = callback_meta[2]["TransactionDate"]
-    #     phone_number = callback_meta[3]["PhoneNumber"]
+    # success details
+    if int(request_code) == 0:
+        # we are going to get the callbackmetadata
+        callback_meta = parent["CallbackMetadata"]
+        amount = callback_meta[0]["Amount"]
+        receipt_number = callback_meta[1]["MpesaReceiptNumber"]
+        transaction_date = callback_meta[2]["TransactionDate"]
+        phone_number = callback_meta[3]["PhoneNumber"]
 
-    #     # we are also going to add the rest of the data before commit
-    #     lookup.amount = amount
-    #     lookup.receipt_number = receipt_number
-    #     lookup.transaction_date = transaction_date
-    #     lookup.phone_number = phone_number
-    #     db.session.add(lookup)
-    # else:
-    #     # here we are  just going to commit
-    #     db.session.add(lookup)
-    # db.session.commit()
+        # we are also going to add the rest of the data before commit
+        lookup.amount = amount
+        lookup.receipt_number = receipt_number
+        lookup.transaction_date = transaction_date
+        lookup.phone_number = phone_number
+        db.session.add(lookup)
+    else:
+        # here we are  just going to commit
+        db.session.add(lookup)
+    db.session.commit()
     # add give data back ot the user
-    # final = mpesa_schema.jsonify(lookup)
-    final = dict()
+    final = mpesa_schema.jsonify(lookup)
     return final
 
 
@@ -701,7 +699,6 @@ def payments():
     amount = 10
     party_b = business_shortcode
     callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
-    # callback_url = "http://8e9d62a3a4d6.ngrok.io:8080/mpesa/b2c/v1"
     response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                         callback_url)
 
