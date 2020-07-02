@@ -334,7 +334,6 @@ def make_book():
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
-
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                  callback_url)
         # token will be used to check if transcation is successful
@@ -343,20 +342,19 @@ def make_book():
 
 @app.route("/verify/payment", methods=["POST"])
 def make_book_():
-    print(">>>>", request.json)
-    # token = request.json["token"]
-    # service_name = request.json["service_name"]
-    # start = request.json["start"]
-    # branch_id = request.json["branch_id"]
-    # user_id = request.json["user_id"]
-    # is_instant = True if request.json["is_instant"] else False
+    token = request.json["token"]
+    service_name = request.json["service_name"]
+    start = request.json["start"]
+    branch_id = request.json["branch_id"]
+    user_id = request.json["user_id"]
+    is_instant = True if request.json["is_instant"] else False
 
-    # if verify_payment(token):
-    #     final = make_booking(service_name, start, branch_id, is_instant, user_id)
-    # else:
-    #     final = "error"
+    if verify_payment(token):
+        final = make_booking(service_name, start, branch_id, is_instant, user_id)
+    else:
+        final = "error"
 
-    return jsonify({"msg":"final"})
+    return jsonify({"msg":final})
 
 
 def make_booking(service_name, start, branch_id, is_instant, user_id):
