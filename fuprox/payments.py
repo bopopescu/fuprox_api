@@ -36,6 +36,9 @@ def stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_a, p
         "AccountReference": business_shortcode,
         "TransactionDesc": "test",
     }
-    response = requests.post(api_url, json=req, headers=headers)
-    logging.info("response",response)
+    try :
+        response = requests.post(api_url, json=req, headers=headers)
+    except requests.exceptions.ConnectionError as e:
+        logging.info("Error!", e)
+    # logging.info("response",response)
     return response
