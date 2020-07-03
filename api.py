@@ -392,27 +392,31 @@ def verify_payment(token):
 # dealing with payment status
 @app.route("/payment/status", methods=["POST"])
 def payment_res():
-    data = request.json["payment_info"]
+    data = request.json
     parsed = json.loads(data)
+    print("parsed_data >>>",parsed)
 
-    # here we are going to add the new Mpesa Models
-    # common details
+    # # here we are going to add the new Mpesa Models
+    # # common details
     parent = parsed["Body"]["stkCallback"]
     merchant_request_id = parent["MerchantRequestID"]
     checkout_request_id = parent["CheckoutRequestID"]
     result_code = parent["ResultCode"]
     result_desc = parent["ResultDesc"]
+    # print("parent",parent)
+    # print("<>>><>>",merchant_request_id,checkout_request_id,result_code,result_desc)
     lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
 
-    # setting a unique for the database
+    # # # setting a unique for the database
     lookup.local_transactional_key = mpesa_transaction_key
     lookup.merchant_request_id = merchant_request_id
     lookup.checkout_request_id = checkout_request_id
     lookup.result_code = result_code
     lookup.result_desc = result_desc
+    print("result_code",result_code)
 
-    # success details
-    if int(request_code) == 0:
+    # # success details
+    if int(result_code) == 0:
         # we are going to get the callbackmetadata
         callback_meta = parent["CallbackMetadata"]
         amount = callback_meta[0]["Amount"]
@@ -427,6 +431,7 @@ def payment_res():
         lookup.phone_number = phone_number
         db.session.add(lookup)
     else:
+        print("error!")
         # here we are  just going to commit
         db.session.add(lookup)
     db.session.commit()
