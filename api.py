@@ -291,9 +291,9 @@ def get_book():
         res = {"msg": "user/booking mismatch"}
     return jsonify({"booking_data": res})
 
-
+#  other details 
 mpesa_transaction_key = secrets.token_hex(2)
-
+phone_number = int()
 
 @app.route("/book/make", methods=["POST"])
 def make_book():
@@ -303,6 +303,7 @@ def make_book():
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
     phonenumber = request.json["phonenumber"]
+    phone_number = phonenumber
     mpesa_transaction_key = secrets.token_hex(10)
 
     if (is_instant):
@@ -432,6 +433,8 @@ def payment_res():
         db.session.add(lookup)
     else:
         print("error!")
+        # herw we are going to se the number 
+        lookup.phone_number = phone_number
         # here we are  just going to commit
         db.session.add(lookup)
     db.session.commit()

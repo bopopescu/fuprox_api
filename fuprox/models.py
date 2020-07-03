@@ -257,5 +257,5 @@ class Mpesa(db.Model):
 
 class MpesaSchema(ma.Schema):
     class Meta:
-        fields = ("id", "amount", "receipt_number", "transaction_data", "phone_number", "checkout_request_id",
+        fields = ("id", "amount", "receipt_number", "transaction_date", "phone_number", "checkout_request_id",
                   "merchant_request_id", "result_code", "result_desc", "date_added", "local_transactional_key")
