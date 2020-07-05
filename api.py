@@ -338,7 +338,7 @@ def make_book():
 
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
                  callback_url)
-        # token will be used to check if transcation is successful
+        # token will be used to check if transaction is successful
     return jsonify({"token": mpesa_transaction_key})
 
 
@@ -355,7 +355,6 @@ def make_book_():
         final = make_booking(service_name, start, branch_id, is_instant, user_id)
     else:
         final = "error"
-
     return jsonify({"msg":final})
 
 
@@ -389,6 +388,7 @@ def verify_payment(token):
         final = {"msg": False}
     return final
 
+number = phone_number
 
 # dealing with payment status
 @app.route("/payment/status", methods=["POST"])
@@ -434,7 +434,7 @@ def payment_res():
     else:
         print("error!")
         # herw we are going to se the number 
-        lookup.phone_number = phone_number
+        lookup.phone_number = number
         # here we are  just going to commit
         db.session.add(lookup)
     db.session.commit()
@@ -450,7 +450,7 @@ def get_all_bookings():
         res = get_user_bookings(user_id)
         tickets = list()
         for booking in res:
-            tickets.append(generate_tickets(booking["id"]))
+            tickets.append(generate_ticket(booking["id"]))
         res = tickets
     else:
         res = {"msg": "user does not exist"}, 500
@@ -1253,5 +1253,5 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=9000)
-    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    # app.run(host="0.0.0.0", debug=True, port=9000)
+    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
