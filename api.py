@@ -336,7 +336,7 @@ def make_book():
 
         # update the local transactional_KEY
 
-        stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+        stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                  callback_url)
         # token will be used to check if transaction is successful
     return jsonify({"token": mpesa_transaction_key})
@@ -703,7 +703,7 @@ def payments():
     amount = 10
     party_b = business_shortcode
     callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
-    response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, phonenumber, party_b, phonenumber,
+    response = stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                         callback_url)
 
     if response:
@@ -1253,6 +1253,6 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    # app.run(host="0.0.0.0", debug=True, port=9000)
+    # app.run(host="0.0.0.0", debug=True, port=4000)
 
     eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
