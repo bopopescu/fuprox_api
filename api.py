@@ -350,11 +350,11 @@ def make_book_():
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
     is_instant = True if request.json["is_instant"] else False
-
-    if verify_payment(token):
+    res = verify_payment(token)
+    if res["msg"]:
         final = make_booking(service_name, start, branch_id, is_instant, user_id)
     else:
-        final = "error"
+        final = {"result" : "Error","result_code":res["result_desc"]}
     return jsonify({"msg":final})
 
 
@@ -378,14 +378,15 @@ def verify_payment(token):
     data = get_payment(token)
     if data:
         result_code = data["result_code"]
+        result_message = data["result_desc"]
         if int(result_code) == 0:
             # succesful payment
             final = {"msg": True}
         else:
             # error with payment
-            final = {"msg": False}
+            final = {"msg": False,"result":result_message}
     else:
-        final = {"msg": False}
+        final = {"msg": False,"result": "No payment info about that payment"}
     return final
 
 number = phone_number
