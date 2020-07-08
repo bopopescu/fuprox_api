@@ -225,9 +225,11 @@ class TellerSchema(ma.Schema):
 class Payments(db.Model):
     id = db.Column(db.Integer, primary_key=True, nullable=False)
     body = db.Column(db.Text, nullable=False)
+    token = db.Column(db.String(length=255))
 
-    def __init__(self, body):
+    def __init__(self, body,token):
         self.body = body
+        self.token = token
 
 
 class PaymentSchema(ma.Schema):
