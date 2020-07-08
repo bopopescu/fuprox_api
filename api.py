@@ -397,7 +397,9 @@ number = phone_number
 #rework of payment
 @app.route("/payment/status",methods=["POST"])
 def payment_on():
-    lookup = Payments(request.json)
+    res = request.json
+    print(res)
+    lookup = Payments(res)
     return payment_schema.dump(lookup)
 
 # # dealing with payment status
