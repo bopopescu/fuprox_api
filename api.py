@@ -305,6 +305,7 @@ def make_book():
     phonenumber = request.json["phonenumber"]
     phone_number = phonenumber
     mpesa_transaction_key = secrets.token_hex(10)
+    callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
     if (is_instant):
         # we are going to request pay
@@ -314,7 +315,6 @@ def make_book():
         lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         amount = 5
         party_b = business_shortcode
-        callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                             callback_url)
     else:
@@ -325,7 +325,6 @@ def make_book():
         lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         amount = 5
         party_b = business_shortcode
-        callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
         # update the local transactional_KEY
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
