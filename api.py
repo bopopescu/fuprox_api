@@ -393,57 +393,64 @@ def verify_payment(token):
 
 number = phone_number
 
-# dealing with payment status
-@app.route("/payment/status", methods=["POST"])
-def payment_res():
-    data = request.json
-    parsed = json.loads(data)
-    print("parsed_data >>>",parsed)
 
-    # # here we are going to add the new Mpesa Models
-    # # common details
-    parent = parsed["Body"]["stkCallback"]
-    merchant_request_id = parent["MerchantRequestID"]
-    checkout_request_id = parent["CheckoutRequestID"]
-    result_code = parent["ResultCode"]
-    result_desc = parent["ResultDesc"]
-    # print("parent",parent)
-    # print("<>>><>>",merchant_request_id,checkout_request_id,result_code,result_desc)
-    lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
+#rework of payment
+@app.route("/payment/status",methods=["POST"])
+def payment_on():
+    lookup = Payments(request.json)
+    return payment_schema.dump(lookup)
 
-    # # # setting a unique for the database
-    lookup.local_transactional_key = mpesa_transaction_key
-    lookup.merchant_request_id = merchant_request_id
-    lookup.checkout_request_id = checkout_request_id
-    lookup.result_code = result_code
-    lookup.result_desc = result_desc
-    print("result_code",result_code)
-
-    # # success details
-    if int(result_code) == 0:
-        # we are going to get the callbackmetadata
-        callback_meta = parent["CallbackMetadata"]
-        amount = callback_meta[0]["Amount"]
-        receipt_number = callback_meta[1]["MpesaReceiptNumber"]
-        transaction_date = callback_meta[2]["TransactionDate"]
-        phone_number = callback_meta[3]["PhoneNumber"]
-
-        # we are also going to add the rest of the data before commit
-        lookup.amount = amount
-        lookup.receipt_number = receipt_number
-        lookup.transaction_date = transaction_date
-        lookup.phone_number = phone_number
-        db.session.add(lookup)
-    else:
-        print("error!")
-        # herw we are going to se the number 
-        lookup.phone_number = number
-        # here we are  just going to commit
-        db.session.add(lookup)
-    db.session.commit()
-    # add give data back ot the user
-    final = mpesa_schema.jsonify(lookup)
-    return final
+# # dealing with payment status
+# @app.route("/payment/status", methods=["POST"])
+# def payment_res():
+#     data = request.json
+#     parsed = json.loads(data)
+#     print("parsed_data >>>",parsed)
+#
+#     # # here we are going to add the new Mpesa Models
+#     # # common details
+#     parent = parsed["Body"]["stkCallback"]
+#     merchant_request_id = parent["MerchantRequestID"]
+#     checkout_request_id = parent["CheckoutRequestID"]
+#     result_code = parent["ResultCode"]
+#     result_desc = parent["ResultDesc"]
+#     # print("parent",parent)
+#     # print("<>>><>>",merchant_request_id,checkout_request_id,result_code,result_desc)
+#     lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
+#
+#     # # # setting a unique for the database
+#     lookup.local_transactional_key = mpesa_transaction_key
+#     lookup.merchant_request_id = merchant_request_id
+#     lookup.checkout_request_id = checkout_request_id
+#     lookup.result_code = result_code
+#     lookup.result_desc = result_desc
+#     print("result_code",result_code)
+#
+#     # # success details
+#     if int(result_code) == 0:
+#         # we are going to get the callbackmetadata
+#         callback_meta = parent["CallbackMetadata"]
+#         amount = callback_meta[0]["Amount"]
+#         receipt_number = callback_meta[1]["MpesaReceiptNumber"]
+#         transaction_date = callback_meta[2]["TransactionDate"]
+#         phone_number = callback_meta[3]["PhoneNumber"]
+#
+#         # we are also going to add the rest of the data before commit
+#         lookup.amount = amount
+#         lookup.receipt_number = receipt_number
+#         lookup.transaction_date = transaction_date
+#         lookup.phone_number = phone_number
+#         db.session.add(lookup)
+#     else:
+#         print("error!")
+#         # herw we are going to se the number
+#         lookup.phone_number = number
+#         # here we are  just going to commit
+#         db.session.add(lookup)
+#     db.session.commit()
+#     # add give data back ot the user
+#     final = mpesa_schema.jsonify(lookup)
+#     return final
 
 
 @app.route("/book/get/all", methods=["GET", "POST"])
