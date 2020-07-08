@@ -312,18 +312,11 @@ def make_book():
         token = json.loads(token_data)["access_token"]
         business_shortcode = "174379"
         lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
-        amount = 10
+        amount = 5
         party_b = business_shortcode
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                             callback_url)
-        # booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-        # print("booking", booking)
-        # if booking:
-        #     final = generate_ticket(booking["id"])
-        #     sio.emit("online", {"booking_data": booking})
-        # else:
-        #     final = {"msg": "Error generating the ticket. Please Try again later."}
     else:
         # we are going to request pay
         token_data = authenticate()
@@ -335,7 +328,6 @@ def make_book():
         callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
         # update the local transactional_KEY
-
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                  callback_url)
         # token will be used to check if transaction is successful
@@ -400,6 +392,9 @@ def payment_on():
     res = request.json
     print(res)
     lookup = Payments(res)
+    db.session.add(lookup)
+    db.session.commit()
+
     return payment_schema.dump(lookup)
 
 # # dealing with payment status
