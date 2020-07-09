@@ -299,40 +299,29 @@ phone_number = int()
 
 @app.route("/book/make", methods=["POST"])
 def make_book():
-    service_name = request.json["service_name"]
-    start = request.json["start"]
-    branch_id = request.json["branch_id"]
-    user_id = request.json["user_id"]
+
     is_instant = True if request.json["is_instant"] else False
     phonenumber = request.json["phonenumber"]
-    phone_number = phonenumber
-    # mpesa_transaction_key = secrets.token_hex(10)
-    callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
+    # setting the token
     global mpesa_transaction_key
     mpesa_transaction_key = secrets.token_hex(10)
 
+    callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
+    token_data = authenticate()
+    token = json.loads(token_data)["access_token"]
+    business_shortcode = "174379"
+    lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+    party_b = business_shortcode
 
-    if (is_instant):
+    if is_instant:
         # we are going to request pay
-        token_data = authenticate()
-        token = json.loads(token_data)["access_token"]
-        business_shortcode = "174379"
-        lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
-        amount = 5
-        party_b = business_shortcode
+        amount = 10
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                  callback_url)
     else:
         # we are going to request pay
-        token_data = authenticate()
-        token = json.loads(token_data)["access_token"]
-        business_shortcode = "174379"
-        lipa_na_mpesapasskey = "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
         amount = 5
-        party_b = business_shortcode
-
-        # update the local transactional_KEY
         stk_push(token, business_shortcode, lipa_na_mpesapasskey, amount, party_b, phonenumber,
                  callback_url)
         # token will be used to check if transaction is successful
