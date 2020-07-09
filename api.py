@@ -299,7 +299,6 @@ phone_number = int()
 
 @app.route("/book/make", methods=["POST"])
 def make_book():
-
     is_instant = True if request.json["is_instant"] else False
     phonenumber = request.json["phonenumber"]
 
@@ -335,10 +334,14 @@ def make_book_():
     start = request.json["start"]
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
-    is_instant = True if request.json["is_instant"] else False
+    # is_instant = True if request.json["is_instant"] else False
     res = verify_payment(token)
+    is_instant_ = is_instant(token)
     if res["msg"]:
-        final = make_booking(service_name, start, branch_id, is_instant, user_id)
+        if is_instant_:
+            final = make_booking(service_name, start, branch_id, True, user_id)
+        else:
+            final = make_booking(service_name, start, branch_id, False, user_id)
         # "result_code":res["result_desc"]
     else:
         final = {"result": "Token Provided Not Valid"}
@@ -378,6 +381,24 @@ def verify_payment(token):
     return final
 
 
+# check if it is instant
+def is_instant(token):
+    data = get_payment(token)
+    if data:
+        amount = data["amount"]
+        # result_message = data["result_desc"]
+        # "result":result_message
+        if int(amount) == 10:
+            # succesful payment
+            final = {"msg": True}
+        else:
+            # error with payment
+            final = {"msg": False}
+    else:
+        final = {"msg": False, "result": "No payment info about that payment"}
+    return final
+
+
 number = phone_number
 
 
@@ -401,7 +422,7 @@ def payment_on():
     return data_
 
 
-@app.route("/test",methods=["POST"])
+@app.route("/test", methods=["POST"])
 def tests():
     token = request.json["token"]
     lookup = Payments.query.filter_by(token=token).first()
@@ -412,7 +433,7 @@ def tests():
         final = dict(data)['body']
         data_ = payment_res(final)
     else:
-        data_ = {"msg" : "Token Invalid"}
+        data_ = {"msg": "Token Invalid"}
     return data_
 
 
@@ -421,7 +442,7 @@ def tests():
 def payment_res(parsed):
     print(parsed)
     parsed = json.loads(parsed)
-    print(">>",parsed,type(parsed))
+    print(">>", parsed, type(parsed))
     parent = parsed["Body"]["stkCallback"]
     merchant_request_id = parent["MerchantRequestID"]
     checkout_request_id = parent["CheckoutRequestID"]
@@ -460,7 +481,7 @@ def payment_res(parsed):
     db.session.commit()
     # add give data back to the user
     final = mpesa_schema.dump(lookup)
-    print("<><><><>>>>>>>>:::::",final)
+    print("<><><><>>>>>>>>:::::", final)
     return final
 
 
