@@ -293,7 +293,7 @@ def get_book():
 
 
 #  other details
-mpesa_transaction_key = secrets.token_hex(10)
+mpesa_transaction_key = ""
 phone_number = int()
 
 
@@ -310,6 +310,8 @@ def make_book():
     callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
     global mpesa_transaction_key
+    mpesa_transaction_key = secrets.token_hex(10)
+
 
     if (is_instant):
         # we are going to request pay
