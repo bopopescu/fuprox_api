@@ -309,6 +309,8 @@ def make_book():
     # mpesa_transaction_key = secrets.token_hex(10)
     callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
+    global mpesa_transaction_key
+
     if (is_instant):
         # we are going to request pay
         token_data = authenticate()
