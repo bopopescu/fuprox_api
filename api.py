@@ -446,11 +446,11 @@ def payment_res(parsed):
     # # success details
     if int(result_code) == 0:
         # we are going to get the callbackmetadata
-        callback_meta = parent["CallbackMetadata"]
-        amount = callback_meta[0]["Amount"]
-        receipt_number = callback_meta[1]["MpesaReceiptNumber"]
-        transaction_date = callback_meta[2]["TransactionDate"]
-        phone_number = callback_meta[3]["PhoneNumber"]
+        callback_meta = parent["CallbackMetadata"]["Item"]
+        amount = callback_meta[0]["Value"]
+        receipt_number = callback_meta[1]["Value"]
+        transaction_date = callback_meta[2]["Value"]
+        phone_number = callback_meta[3]["Value"]
 
         # we are also going to add the rest of the data before commit
         lookup.amount = amount
