@@ -234,7 +234,7 @@ class Payments(db.Model):
 
 class PaymentSchema(ma.Schema):
     class Meta:
-        fields = ("id", "message","token")
+        fields = ("id","body","token")
 
 
 class Mpesa(db.Model):

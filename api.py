@@ -400,7 +400,7 @@ def payment_on():
     lookup = Payments.query.filter_by(token=mpesa_transaction_key).first()
     data = payment_schema.dump(lookup)
     if data:
-        data_ = payment_res(data)
+        data_ = payment_res(data["body"])
     else:
         data_ = {"msg" : None}
     return data_
