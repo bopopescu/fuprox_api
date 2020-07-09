@@ -407,21 +407,15 @@ def payment_on():
 
 # # dealing with payment status
 # @app.route("/payment/status", methods=["POST"])
-def payment_res(data):
-    parsed = json.loads(data)
-    print("parsed_data >>>", parsed)
-    # # here we are going to add the new Mpesa Models
-    # # common details
+def payment_res(parsed):
     parent = parsed["Body"]["stkCallback"]
     merchant_request_id = parent["MerchantRequestID"]
     checkout_request_id = parent["CheckoutRequestID"]
     result_code = parent["ResultCode"]
     result_desc = parent["ResultDesc"]
-    # print("parent",parent)
-    # print("<>>><>>",merchant_request_id,checkout_request_id,result_code,result_desc)
     lookup = Mpesa(merchant_request_id, checkout_request_id, result_code, result_code)
 
-    # # # setting a unique for the database
+    # setting a unique for the database
     lookup.local_transactional_key = mpesa_transaction_key
     lookup.merchant_request_id = merchant_request_id
     lookup.checkout_request_id = checkout_request_id
