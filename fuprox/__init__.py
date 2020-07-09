@@ -18,6 +18,7 @@ jwt = JWTManager(app)
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+mysqlconnector://root:japanitoes@localhost:3306/fuprox"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
+#app bindings
 bcrypt = Bcrypt(app)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
