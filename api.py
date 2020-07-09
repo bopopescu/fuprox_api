@@ -388,7 +388,7 @@ def is_instant(token):
         amount = data["amount"]
         # result_message = data["result_desc"]
         # "result":result_message
-        if int(amount) == 10:
+        if amount == '10':
             # succesful payment
             final = {"msg": True}
         else:
@@ -396,6 +396,7 @@ def is_instant(token):
             final = {"msg": False}
     else:
         final = {"msg": False, "result": "No payment info about that payment"}
+        print(">>>>>>>>",final)
     return final
 
 
