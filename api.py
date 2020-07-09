@@ -352,7 +352,7 @@ def make_book_():
         final = make_booking(service_name, start, branch_id, is_instant, user_id)
         # "result_code":res["result_desc"]
     else:
-        final = {"result": "Error"}
+        final = {"result": "Token Provided Not Valid"}
     return jsonify({"msg": final})
 
 
