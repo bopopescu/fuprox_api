@@ -339,9 +339,9 @@ def make_book_():
     is_instant_ = is_instant(token)
     if res["msg"]:
         if is_instant_:
-            final = make_booking(service_name, start, branch_id, user_id,instant=True)
+            final = make_booking(service_name, start, branch_id, True, user_id)
         else:
-            final = make_booking(service_name, start, branch_id, user_id,instant=False)
+            final = make_booking(service_name, start, branch_id, False, user_id)
         # "result_code":res["result_desc"]
     else:
         final = {"result": "Token Provided Not Valid"}
