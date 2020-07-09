@@ -406,6 +406,7 @@ number = phone_number
 # rework of payment
 @app.route("/payment/status", methods=["POST"])
 def payment_on():
+    print("peyment status hit :")
     res = request.json
 
     lookup = Payments(res, mpesa_transaction_key)
@@ -423,19 +424,19 @@ def payment_on():
     return data_
 
 
-@app.route("/test", methods=["POST"])
-def tests():
-    token = request.json["token"]
-    lookup = Payments.query.filter_by(token=token).first()
-    data = payment_schema.dump(lookup)
-
-    if data:
-        # updated
-        final = dict(data)['body']
-        data_ = payment_res(final)
-    else:
-        data_ = {"msg": "Token Invalid"}
-    return data_
+# @app.route("/test", methods=["POST"])
+# def tests():
+#     token = request.json["token"]
+#     lookup = Payments.query.filter_by(token=token).first()
+#     data = payment_schema.dump(lookup)
+#
+#     if data:
+#         # updated
+#         final = dict(data)['body']
+#         data_ = payment_res(final)
+#     else:
+#         data_ = {"msg": "Token Invalid"}
+#     return data_
 
 
 # # dealing with payment status
@@ -473,12 +474,14 @@ def payment_res(parsed):
         lookup.transaction_date = transaction_date
         lookup.phone_number = phone_number
         db.session.add(lookup)
+        db.session.commit()
     else:
         print("error!")
         # herw we are going to se the number
         lookup.phone_number = number
         # here we are  just going to commit
         db.session.add(lookup)
+        db.session.commit()
     db.session.commit()
     # add give data back to the user
     final = mpesa_schema.dump(lookup)
