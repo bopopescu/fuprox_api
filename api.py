@@ -293,7 +293,7 @@ def get_book():
 
 
 #  other details
-mpesa_transaction_key = secrets.token_hex(2)
+mpesa_transaction_key = secrets.token_hex(10)
 phone_number = int()
 
 
@@ -306,7 +306,7 @@ def make_book():
     is_instant = True if request.json["is_instant"] else False
     phonenumber = request.json["phonenumber"]
     phone_number = phonenumber
-    mpesa_transaction_key = secrets.token_hex(10)
+    # mpesa_transaction_key = secrets.token_hex(10)
     callback_url = "http://68.183.89.127:8080/mpesa/b2c/v1"
 
     if (is_instant):
@@ -392,6 +392,7 @@ number = phone_number
 @app.route("/payment/status", methods=["POST"])
 def payment_on():
     res = request.json
+    print("res",res)
     lookup = Payments(res, mpesa_transaction_key)
     db.session.add(lookup)
     db.session.commit()
