@@ -392,7 +392,7 @@ number = phone_number
 @app.route("/payment/status", methods=["POST"])
 def payment_on():
     res = request.json
-    print("res",res)
+
     lookup = Payments(res, mpesa_transaction_key)
     db.session.add(lookup)
     db.session.commit()
@@ -409,6 +409,7 @@ def payment_on():
 # # dealing with payment status
 # @app.route("/payment/status", methods=["POST"])
 def payment_res(parsed):
+    print(parsed,mpesa_transaction_key)
     parent = parsed["Body"]["stkCallback"]
     merchant_request_id = parent["MerchantRequestID"]
     checkout_request_id = parent["CheckoutRequestID"]
