@@ -407,10 +407,25 @@ def payment_on():
     return data_
 
 
+@app.route("/test",methods=["POST"])
+def tests():
+    token = request.json["token"]
+    lookup = Payments.query.filter_by(token=token).first()
+    data = payment_schema.dump(lookup)
+    final = dict(data)['body']
+    if data:
+        data_ = payment_res(final)
+    else:
+        data_ = {"msg" : None}
+    return "data_"
+
+
 # # dealing with payment status
 # @app.route("/payment/status", methods=["POST"])
 def payment_res(parsed):
-    print(parsed,mpesa_transaction_key)
+    print(parsed)
+    parsed = json.loads(parsed)
+    print(">>",parsed,type(parsed))
     parent = parsed["Body"]["stkCallback"]
     merchant_request_id = parent["MerchantRequestID"]
     checkout_request_id = parent["CheckoutRequestID"]
@@ -449,6 +464,7 @@ def payment_res(parsed):
     db.session.commit()
     # add give data back to the user
     final = mpesa_schema.dump(lookup)
+    print("<><><><>>>>>>>>:::::",final)
     return final
 
 
@@ -1262,6 +1278,6 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    # app.run(host="0.0.0.0", debug=True, port=4000)
+    app.run(host="0.0.0.0", debug=True, port=4000)
 
-    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
