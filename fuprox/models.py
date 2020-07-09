@@ -242,7 +242,7 @@ class Mpesa(db.Model):
     amount = db.Column(db.Float, nullable=True)
     receipt_number = db.Column(db.String(255), nullable=True)
     transaction_date = db.Column(db.String(255), nullable=True)
-    phone_number = db.Column(db.Integer, nullable=True)
+    phone_number = db.Column(db.String(255), nullable=True)
     checkout_request_id = db.Column(db.String(255), nullable=True)
     merchant_request_id = db.Column(db.String(255), nullable=True)
     result_code = db.Column(db.Integer, nullable=False)
