@@ -401,9 +401,10 @@ def payment_on():
     data = payment_schema.dump(lookup)
     print(data)
     if data:
-        data_ = payment_res(dict(data["body"]))
+        final = dict(data)['body']
+        data_ = payment_res(final)
     else:
-        data_ = {"msg" : None}
+        data_ = {"msg": "Token Invalid"}
     return data_
 
 
