@@ -339,23 +339,23 @@ def make_book_():
     is_instant_ = is_instant(token)
     if res["msg"]:
         if is_instant_:
-            final = make_booking(service_name, start, branch_id, "Instant", user_id)
+            final = make_booking(service_name, start, branch_id, True, user_id)
         else:
-            final = make_booking(service_name, start, branch_id, None, user_id)
+            final = make_booking(service_name, start, branch_id, False, user_id)
         # "result_code":res["result_desc"]
     else:
         final = {"result": "Token Provided Not Valid"}
     return jsonify({"msg": final})
 
 
-def make_booking(service_name, start, branch_id, is_instant, user_id):
-    booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-    if booking:
-        final = generate_ticket(booking["id"])
-        sio.emit("online", {"booking_data": booking})
-    else:
-        final = {"msg": "Error generating the ticket. Please Try again later."}
-    return final
+# def make_booking(service_name, start, branch_id, is_instant, user_id):
+#     booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
+#     if booking:
+#         final = generate_ticket(booking["id"])
+#         sio.emit("online", {"booking_data": booking})
+#     else:
+#         final = {"msg": "Error generating the ticket. Please Try again later."}
+#     return final
 
 
 def get_payment(token):
