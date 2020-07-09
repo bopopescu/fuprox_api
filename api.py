@@ -412,12 +412,13 @@ def tests():
     token = request.json["token"]
     lookup = Payments.query.filter_by(token=token).first()
     data = payment_schema.dump(lookup)
-    final = dict(data)['body']
+
     if data:
+        final = dict(data)['body']
         data_ = payment_res(final)
     else:
-        data_ = {"msg" : None}
-    return "data_"
+        data_ = {"msg" : "Token Invalid"}
+    return data_
 
 
 # # dealing with payment status
