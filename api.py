@@ -337,22 +337,48 @@ def make_book_():
     start = request.json["start"]
     branch_id = request.json["branch_id"]
     user_id = request.json["user_id"]
-    # is_instant = True if request.json["is_instant"] else False
-    res = verify_payment(token)
-    is_instant_ = is_instant(token)
-    print("token valid",res["msg"])
-    if res["msg"]:
-        if is_instant_['msg']:
-            print("instant")
-            # final = make_booking(service_name, start, branch_id, True, user_id)
-            final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
+    # we are going to use the payments table to display;
+    lookup = Payments.query.filter_by(token=token).first()
+    # main object
+    payment_data = payment_schema.dump(lookup)
+    # "start"
+    parent = payment_data["Body"]["stkCallback"]
+    result_code = parent["ResultCode"]
+    result_desc = parent["ResultDesc"]
+    # end
+    if payment_data:
+        if int(result_code) == 0:
+            callback_meta = parent["CallbackMetadata"]["Item"]
+            amount = callback_meta[0]["Value"]
+            # succesful payment
+            if payment_data['msg']:
+                final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
+            else:
+                final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
         else:
-            print("not instant")
-            final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
-        # "result_code":res["result_desc"]
+            # error with payment
+            final = {"msg": "Error With Payment","error":result_desc}
     else:
-        final = {"result": "Token Provided Not Valid"}
-    return jsonify({"msg": final})
+        final = {"msg": False, "result": "Token Invalid"}
+
+    return jsonify(final)
+
+
+    # res = verify_payment(token)
+    # is_instant_ = is_instant(token)
+    # print("token valid",res["msg"])
+    # if res["msg"]:
+    #     if is_instant_['msg']:
+    #         print("instant")
+    #         # final = make_booking(service_name, start, branch_id, True, user_id)
+    #         final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
+    #     else:
+    #         print("not instant")
+    #         final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
+    #     # "result_code":res["result_desc"]
+    # else:
+    #     final = {"result": "Token Provided Not Valid"}
+    # return jsonify({"msg": final})
 
 
 @app.route("/payment/status", methods=["POST"])
