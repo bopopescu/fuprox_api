@@ -12,12 +12,12 @@ vK3FkmwDOHAcX8UPt1Ek0njU9iE5plHG
 vqB3jnDyqP1umewH
 """
 # eriko
-consumer_key = "qq4lh4XeRQDGKVnvJS4OyGYL2xFtJT2s"
-consumer_secret = "GdWPdMXMWKVMu7Xm"
+# consumer_key = "qq4lh4XeRQDGKVnvJS4OyGYL2xFtJT2s"
+# consumer_secret = "GdWPdMXMWKVMu7Xm"
 
 # denis
-# consumer_key = "vK3FkmwDOHAcX8UPt1Ek0njU9iE5plHG"
-# consumer_secret = "vqB3jnDyqP1umewH"
+consumer_key = "vK3FkmwDOHAcX8UPt1Ek0njU9iE5plHG"
+consumer_secret = "vqB3jnDyqP1umewH"
 
 
 
