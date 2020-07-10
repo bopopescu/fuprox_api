@@ -419,7 +419,6 @@ def is_instant(token):
         # result_message = data["result_desc"]
         # "result":result_message
         if amount == '10' or amount == "10.0" or amount == 10 or amount == 10.0:
-            print("::::::: instant")
             # succesful payment
             final = {"msg": True}
         else:
@@ -438,16 +437,15 @@ number = phone_number
 # rework of payment
 @app.route("/payment/status", methods=["POST"])
 def payment_on():
-    print("peyment status hit :")
+    
     res = request.json
-
     lookup = Payments(res, mpesa_transaction_key)
     db.session.add(lookup)
     db.session.commit()
+    
     # geting the object in the db by this key
     lookup = Payments.query.filter_by(token=mpesa_transaction_key).first()
     data = payment_schema.dump(lookup)
-    print("from db>>>", data)
     if data:
         final = dict(data)['body']
         data_ = payment_res(final)
@@ -1310,5 +1308,6 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    # app.run(host="0.0.0.0", debug=True, port=4000)
-    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    app.run(host="0.0.0.0", debug=True, port=9000)
+
+    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
