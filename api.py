@@ -215,7 +215,7 @@ def branch_get_single(branch_id):
         res["is_medical"] = final
         res["company"] = company_
     else:
-        res = {"status" : False ,"msg":"Branch Does Not Exist"}
+        res = {"status": False, "msg": "Branch Does Not Exist"}
     return res
 
 
@@ -340,28 +340,25 @@ def make_book_():
     # is_instant = True if request.json["is_instant"] else False
     res = verify_payment(token)
     is_instant_ = is_instant(token)
+    print("token valid",res["msg"])
     if res["msg"]:
         if is_instant_['msg']:
             print("instant")
             # final = make_booking(service_name, start, branch_id, True, user_id)
-            final = make_booking(service_name,start,branch_id,instant=True,user=user_id)
+            final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
         else:
             print("not instant")
-            final = make_booking(service_name, start, branch_id,instant=False,user=user_id)
+            final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
         # "result_code":res["result_desc"]
     else:
         final = {"result": "Token Provided Not Valid"}
     return jsonify({"msg": final})
 
 
-# def make_booking(service_name, start, branch_id, is_instant, user_id):
-#     booking = create_booking(service_name, start, branch_id, is_instant=is_instant, user_id=user_id)
-#     if booking:
-#         final = generate_ticket(booking["id"])
-#         sio.emit("online", {"booking_data": booking})
-#     else:
-#         final = {"msg": "Error generating the ticket. Please Try again later."}
-#     return final
+@app.route("/payment/status", methods=["POST"])
+def check_payment_status():
+    token = request.json["token"]
+    return jsonify({"valid":verify_payment(token),"data":get_payment(token)})
 
 
 def get_payment(token):
@@ -374,8 +371,6 @@ def verify_payment(token):
     data = get_payment(token)
     if data:
         result_code = data["result_code"]
-        # result_message = data["result_desc"]
-        # "result":result_message
         if int(result_code) == 0:
             # succesful payment
             final = {"msg": True}
@@ -392,7 +387,7 @@ def is_instant(token):
     data = get_payment(token)
     if data:
         amount = data["amount"]
-        print("amount",amount)
+        print("amount", amount)
         # result_message = data["result_desc"]
         # "result":result_message
         if amount == '10' or amount == "10.0" or amount == 10 or amount == 10.0:
@@ -405,7 +400,7 @@ def is_instant(token):
             final = {"msg": False}
     else:
         final = {"msg": False, "result": "No payment info about that payment"}
-        print(">>>>>>>>",final)
+        print(">>>>>>>>", final)
     return final
 
 
@@ -424,7 +419,7 @@ def payment_on():
     # geting the object in the db by this key
     lookup = Payments.query.filter_by(token=mpesa_transaction_key).first()
     data = payment_schema.dump(lookup)
-    print("from db>>>",data)
+    print("from db>>>", data)
     if data:
         final = dict(data)['body']
         data_ = payment_res(final)
@@ -747,7 +742,6 @@ def update_tickets_():
     return final
 
 
-
 @app.route("/payments/user/status", methods=["POST"])
 def payment_user_status():
     data = request.json["phone"]
@@ -1052,7 +1046,7 @@ def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, up
         data_.update(booking_schema.dump(lookup))
         final = data_
     else:
-        print("<><><>",instant)
+        print("<><><>", instant)
         lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user,
                          instant)
         db.session.add(lookup)
