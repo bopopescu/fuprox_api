@@ -383,7 +383,7 @@ def make_book_():
     # return jsonify({"msg": final})
 
 
-@app.route("/payment/status", methods=["POST"])
+@app.route("/token/status", methods=["POST"])
 def check_payment_status():
     token = request.json["token"]
     return jsonify({"valid":verify_payment(token),"data":get_payment(token)})
