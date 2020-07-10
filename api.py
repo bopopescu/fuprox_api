@@ -199,20 +199,23 @@ def branch_get_single(branch_id):
     # make a database selection
     data = Branch.query.filter_by(id=branch_id).first()
     res = branch_schema.dump(data)
-    final = bool()
-    company_ = ""
-    # get company_data
-    if data:
-        company = get_company_by_branch(res["company"])
-        if company:
-            company_ = company["id"]
     if res:
-        if branch_is_medical(res["id"]):
-            final = True
-        else:
-            final = False
-    res["is_medical"] = final
-    res["company"] = company_
+        final = bool()
+        company_ = ""
+        # get company_data
+        if data:
+            company = get_company_by_branch(res["company"])
+            if company:
+                company_ = company["id"]
+        if res:
+            if branch_is_medical(res["id"]):
+                final = True
+            else:
+                final = False
+        res["is_medical"] = final
+        res["company"] = company_
+    else:
+        res = {"status" : False ,"msg":"Branch Does Not Exist"}
     return res
 
 
