@@ -342,16 +342,18 @@ def make_book_():
     # main object
     payment_data = payment_schema.dump(lookup)
     # "start"
-    parent = payment_data["Body"]["stkCallback"]
-    result_code = parent["ResultCode"]
-    result_desc = parent["ResultDesc"]
+
     # end
     if payment_data:
+        main = json.loads(payment_data["body"])
+        parent = main["Body"]["stkCallback"]
+        result_code = parent["ResultCode"]
+        result_desc = parent["ResultDesc"]
         if int(result_code) == 0:
             callback_meta = parent["CallbackMetadata"]["Item"]
             amount = callback_meta[0]["Value"]
             # succesful payment
-            if payment_data['msg']:
+            if int(amount) == 10:
                 final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
             else:
                 final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
@@ -1308,6 +1310,5 @@ except socketio.exceptions.ConnectionError:
     print("Error! Could not connect to the socket server.")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, port=9000)
-
-    # eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
+    # app.run(host="0.0.0.0", debug=True, port=4000)
+    eventlet.wsgi.server(eventlet.listen(('', 4000)), app)
