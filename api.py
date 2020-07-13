@@ -136,7 +136,7 @@ def get_user():
 def adduser():
     email = request.json["email"]
     password = request.json["password"]
-    dummy_phone = secrets.token_hex(8)
+    dummy_phone = secrets.token_hex(4)
 
     # get user data
     lookup = Customer.query.filter_by(email=email).first()
@@ -145,8 +145,8 @@ def adduser():
         # hashing the password
         hashed_password = bcrypt.generate_password_hash(password)
         user = Customer(email, hashed_password, dummy_phone)
-        db.session.add(user)
         try:
+            db.session.add(user)
             db.session.commit()
         except sqlalchemy.exc.DataError as e:
             print(f"Error: {e}")
