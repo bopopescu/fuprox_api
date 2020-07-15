@@ -274,6 +274,7 @@ def get_book():
             # return the ticket
             data = Booking.query.get(booking_id)
             final = booking_schema.dump(data)
+            print(final)
 
             if final:
                 name = ServiceOffered.query.filter_by(name=final["service_name"]).first()
@@ -354,9 +355,13 @@ def make_book_():
             amount = callback_meta[0]["Value"]
             # succesful payment
             if int(amount) == 10:
-                final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
+                print("instant")
+                # final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
+                final = create_booking(service_name,start,branch_id,True,user_id)
             else:
-                final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
+                print("not instant")
+                # final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
+                final = create_booking(service_name,start,branch_id,False,user_id)
         else:
             # error with payment
             final = {"msg": "Error With Payment","error":result_desc}
@@ -429,7 +434,6 @@ def is_instant(token):
         final = {"msg": False, "result": "No payment info about that payment"}
         print(">>>>>>>>", final)
     return final
-
 
 number = phone_number
 
@@ -969,13 +973,16 @@ def ticket_queue(service_name, branch_id):
 
 
 def create_booking(service_name, start, branch_id, is_instant, user_id):
+    print("called")
     if service_exists(service_name, branch_id):
         if is_user(user_id):
+            print("user exists")
             final = ""
             # get the service
             data = service_exists(service_name, branch_id)
             name = data["name"]
             if ticket_queue(service_name, branch_id):
+                print("here>>>>>>>>")
                 # get last ticket is active next == True
                 # get the last booking
                 book = get_last_ticket(service_name, branch_id)
@@ -987,6 +994,7 @@ def create_booking(service_name, start, branch_id, is_instant, user_id):
                 next_ticket = int(last_ticket_number) + 1
                 final = make_booking(name, start, branch_id, next_ticket, instant=is_instant, user=user_id)
             else:
+                print("erer <<<<<<<<<")
                 # we are making the first booking for this category
                 # we are going to make this ticket  active
                 next_ticket = 1
@@ -1072,7 +1080,6 @@ def make_booking(service_name, start="", branch_id=1, ticket=1, active=False, up
         data_.update(booking_schema.dump(lookup))
         final = data_
     else:
-        print("<><><>", instant)
         lookup = Booking(service_name, start, branch_id, ticket, active, upcoming, serviced, teller, kind, user,
                          instant)
         db.session.add(lookup)

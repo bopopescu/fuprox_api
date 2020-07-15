@@ -5,7 +5,6 @@ from flask_bcrypt import Bcrypt
 from flask_jwt_extended import (JWTManager)
 from flask_cors import CORS
 
-
 app = Flask(__name__)
 
 # init cors
@@ -18,7 +17,7 @@ jwt = JWTManager(app)
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+mysqlconnector://root:japanitoes@localhost:3306/fuprox"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
-#app bindings
+# app bindings
 bcrypt = Bcrypt(app)
 db = SQLAlchemy(app)
 ma = Marshmallow(app)
