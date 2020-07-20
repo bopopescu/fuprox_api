@@ -1215,36 +1215,6 @@ def disconnect():
     print('disconnected from server')
 
 
-'''
-# is_instant = data["is_instant"]
-    # service_name = data["service_name"]
-    # user = data["user"]
-    # active = data["active"]
-    # ticket = data["ticket"]
-    # start = data["start"]
-    # id = data["id"]
-    # kind = data["kind"]
-    # serviced = data["serviced"]
-    # branch_id = data["branch_id"]
-    # key_ = data["key_"]
-    # final = {
-    #     "data": {
-    #         "instant": is_instant,
-    #         "service_name": service_name,
-    #         "user": user,
-    #         "active": active,
-    #         "ticket": ticket,
-    #         "start": start,
-    #         "id": id,
-    #         "kind": kind,
-    #         "serviced": serviced,
-    #         "branch_id": branch_id,
-    #         "key_": key_
-    #     }
-    # }
-'''
-
-
 @sio.on('online_data_')
 def online_data(data):
     data = data["booking_data"]
