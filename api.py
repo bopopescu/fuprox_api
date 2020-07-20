@@ -1279,18 +1279,18 @@ def sync_offline_data(data):
                 # deal with services offered
                 for service in parsed_data["services"]:
                     requests.post(f"{link}/sycn/offline/services", json=service)
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
             if parsed_data["tellers"]:
                 for teller_ in parsed_data["tellers"]:
                     requests.post(f"{link}/sycn/offline/teller", json=teller_)
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
             if parsed_data["bookings"]:
                 # deal with bookings
                 for booking in parsed_data["bookings"]:
                     requests.post(f"{link}/sycn/online/booking", json=booking)
-                    time.sleep(0.1)
+                    time.sleep(0.5)
 
             # this key here  will trigger the data for a specific branch to be
             # fetched and pushed down the backend module.
@@ -1298,7 +1298,6 @@ def sync_offline_data(data):
             if parsed_data["key"]:
                 # send online data back to the desktop app
                 sio.emit("all_sync_online", sync_service(parsed_data["key"]))
-
             # emit data to some a function
 
 
