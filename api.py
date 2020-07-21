@@ -342,37 +342,39 @@ def make_book_():
     lookup = Payments.query.filter_by(token=token).first()
     # main object
     payment_data = payment_schema.dump(lookup)
+
+    print(">>>> payment data",payment_data)
     # "start"
 
     # end
     if payment_data:
+        print("stage one")
         main = json.loads(payment_data["body"])
         parent = main["Body"]["stkCallback"]
         result_code = parent["ResultCode"]
         result_desc = parent["ResultDesc"]
         if int(result_code) == 0:
+            print("stage 2")
             callback_meta = parent["CallbackMetadata"]["Item"]
             amount = callback_meta[0]["Value"]
             # succesful payment
             if int(amount) == 10:
                 print("instant")
                 # final = make_booking(service_name, start, branch_id, instant=True, user=user_id)
-                final = create_booking(service_name,start,branch_id,True,user_id)
+                final = create_booking(service_name, start, branch_id, True, user_id)
                 sio.emit("online", final)
-
             else:
                 print("not instant")
                 # final = make_booking(service_name, start, branch_id, instant=False, user=user_id)
-                final = create_booking(service_name,start,branch_id,False,user_id)
+                final = create_booking(service_name, start, branch_id, False, user_id)
                 sio.emit("online", final)
         else:
             # error with payment
-            final = {"msg": "Error With Payment","error":result_desc}
+            final = {"msg": "Error With Payment", "error": result_desc}
     else:
         final = {"msg": False, "result": "Token Invalid"}
 
     return jsonify(final)
-
 
     # res = verify_payment(token)
     # is_instant_ = is_instant(token)
@@ -394,7 +396,7 @@ def make_book_():
 @app.route("/token/status", methods=["POST"])
 def check_payment_status():
     token = request.json["token"]
-    return jsonify({"valid":verify_payment(token),"data":get_payment(token)})
+    return jsonify({"valid": verify_payment(token), "data": get_payment(token)})
 
 
 def get_payment(token):
@@ -438,18 +440,18 @@ def is_instant(token):
         print(">>>>>>>>", final)
     return final
 
+
 number = phone_number
 
 
 # rework of payment
 @app.route("/payment/status", methods=["POST"])
 def payment_on():
-    
     res = request.json
     lookup = Payments(res, mpesa_transaction_key)
     db.session.add(lookup)
     db.session.commit()
-    
+
     # geting the object in the db by this key
     lookup = Payments.query.filter_by(token=mpesa_transaction_key).first()
     data = payment_schema.dump(lookup)
@@ -745,9 +747,11 @@ def sycn_teller():
     number = request.json["number"]
     teller = dict()
     try:
+        print(">>> teller data :", number, branch, service)
         teller = add_teller(number, branch, service)
-    except sqlalchemy.exc.IntegrityError:
-        print("Error! Could not add the record.")
+    except sqlalchemy.exc.IntegrityError as e:
+        print(e)
+        print("Error! Teller could not be added Could not add the record.")
     return teller
 
 
@@ -805,31 +809,28 @@ def services_exist(services, branch_id):
 
 def add_teller(teller_number, branch_id, service_name):
     # here we are going to ad teller details
-    if len(service_name.split(",")) > 1:
-        if services_exist(service_name, branch_id) and branch_exist(branch_id):
-            # get teller by name
-            if get_teller(teller_number):
-                final = {"msg": "Teller number exists"}, 500
-            else:
-                lookup = Teller(teller_number, branch_id, service_name)
-                db.session.add(lookup)
-                db.session.commit()
-                final = teller_schema.dump(lookup)
-        else:
-            final = {"msg": "branch/service name error. Make sure service name and branch name exists. many"}
-    else:
-        if branch_exist(branch_id) and service_exists(service_name, branch_id):
-            # get teller by name
-            if get_teller(teller_number):
-                final = {"msg": "Teller number exists"}, 500
-            else:
-                lookup = Teller(teller_number, branch_id, service_name)
-                db.session.add(lookup)
-                db.session.commit()
-                final = teller_schema.dump(lookup)
-        else:
-            final = {"msg": "branch/service name error. Make sure service name and branch name exists. single"}, 500
+    # two words service name
 
+    if len(service_name.split(",")) > 1:
+        # get teller by name
+        if get_teller(teller_number):
+            final = {"msg": "Teller number exists"}, 500
+        else:
+            lookup = Teller(teller_number, branch_id, service_name)
+            db.session.add(lookup)
+            db.session.commit()
+            final = teller_schema.dump(lookup)
+    else:
+        # get teller by name
+        if get_teller(teller_number):
+            final = {"msg": "Teller number exists"}, 500
+        else:
+            lookup = Teller(teller_number, branch_id, service_name)
+            db.session.add(lookup)
+            db.session.commit()
+            final = teller_schema.dump(lookup)
+
+        print("finale >>>>", final)
     return final
 
 
@@ -1061,7 +1062,7 @@ def create_booking_online_(service_name, start, branch_id_, is_instant=False, us
             raise ValueError("Service Does Not Exist. Please Add Service First.")
             final = True
 
-    print("the final output of the fuction >>>>", final)
+    # print("the final output of the fuction >>>>", final)
     return final
 
 
@@ -1275,6 +1276,14 @@ def sync_offline_data(data):
 def add_teller_data(data):
     data = data["teller_data"]
     requests.post(f"{link}/sycn/offline/teller", json=data)
+
+
+@sio.on("verify_key_data")
+def verify_key(key):
+    lookup = Branch.query.filter_by(key_=key).first()
+    if lookup:
+        sio.emit("key_response",branch_schema.dump(lookup))
+
 
 
 try:
